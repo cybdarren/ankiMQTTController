@@ -19,29 +19,30 @@ const ANKI_VEHICLE_MSG_V2C_LOCALIZATION_INTERSECTION_UPDATE = 0x2a;
 const ANKI_VEHICLE_MSG_V2C_VEHICLE_DELOCALIZED = 0x2b;
 const ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER = 0x2c;
 const ANKI_VEHICLE_MSG_V2C_OFFSET_FROM_ROAD_CENTER_UPDATE = 0x2d;
-const ANKI_VEHICLE_MSG_C2V_TURN_180 = 0x32;
+const ANKI_VEHICLE_MSG_C2V_TURN = 0x32;
 const ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN = 0x33;
 const ANKI_VEHICLE_MSG_C2V_SET_CONFIG_PARAMS = 0x45;
 const ANKI_VEHICLE_MSG_C2V_SDK_MODE = 0x90;
 
 module.exports = function () {
   return {
-    "parse": function (data) {
+    "parse": function (carName, data) {
+
       var msgId = data.readUInt8(1);
 
       if (msgId == ANKI_VEHICLE_MSG_V2C_PING_RESPONSE) {
-        console.log("Message[0x" + msgId.toString(16) + "][Ping Response]: ", data);
+        console.log(carName + " Message[0x" + msgId.toString(16) + "][Ping Response]: ", data);
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_VERSION_RESPONSE) {
         var version = data.readUInt16LE(2);
-        console.log("Message[" + msgId.toString(16) + "][Version]: " + version.toString(16));
+        console.log(carName + " Message[" + msgId.toString(16) + "][Version]: " + version.toString(16));
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_BATTERY_LEVEL_RESPONSE) { 
         var level = data.readUInt16LE(2);
         const MAX_BATTERY_LEVEL = 4200 // This is assumed from experience.
-        console.log("Message[0x" + msgId.toString16 + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
+        console.log(carName + " Message[0x" + msgId.toString16 + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
       }
 
       // Lights
@@ -58,7 +59,7 @@ module.exports = function () {
       else if (msgId == ANKI_VEHICLE_MSG_C2V_CANCEL_LANE_CHANGE) { 
       }
 
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_TURN_180) { 
+      else if (msgId == ANKI_VEHICLE_MSG_C2V_TURN) { 
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER) { 
@@ -96,8 +97,8 @@ module.exports = function () {
           return; // Sometimes we get an odd msg.
         }
         trackTransition = true;
-        var leftWheelDistance = data.readUInt8(17);
-        var rightWheelDistance = data.readUInt8(18);
+        var leftWheelDistance = data.readUInt8(16);
+        var rightWheelDistance = data.readUInt8(17);
         trackStyle = ""
         if (leftWheelDistance == rightWheelDistance) { trackStyle = "Straight"; }
         else if (leftWheelDistance == (rightWheelDistance + 1)) { trackStyle = "Straight"; }
@@ -113,15 +114,15 @@ module.exports = function () {
           crossedStartingLine = " (Crossed Starting Line)";
         }
 
-        console.log("Message[0x" + msgId.toString(16) + "][Track Event]: ", data, "Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
+        console.log(carName + " Message[0x" + msgId.toString(16) + "][Track Event]: ", data, "Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_VEHICLE_DELOCALIZED) { 
-        console.log("Message[0x" + msgId.toString(16) + "][Vehicle Delocalized]: ", data);
+        console.log(carName + " Message[0x" + msgId.toString(16) + "][Vehicle Delocalized]: ", data);
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_OFFSET_FROM_ROAD_CENTER_UPDATE) { 
-        console.log("Message[0x" + msgId.toString(16) + "][Offset From Road Center Update]: ", data);
+        console.log(carName + " Message[0x" + msgId.toString(16) + "][Offset From Road Center Update]: ", data);
       }
 
       else if (msgId == 0x41) {

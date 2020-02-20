@@ -24,7 +24,7 @@ const ANKI_VEHICLE_MSG_V2C_LOCALIZATION_INTERSECTION_UPDATE = 0x2a;
 const ANKI_VEHICLE_MSG_V2C_VEHICLE_DELOCALIZED = 0x2b;
 const ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER = 0x2c;
 const ANKI_VEHICLE_MSG_V2C_OFFSET_FROM_ROAD_CENTER_UPDATE = 0x2d;
-const ANKI_VEHICLE_MSG_C2V_TURN_180 = 0x32;
+const ANKI_VEHICLE_MSG_C2V_TURN = 0x32;
 const ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN = 0x33;
 const ANKI_VEHICLE_MSG_C2V_SET_CONFIG_PARAMS = 0x45;
 const ANKI_VEHICLE_MSG_C2V_SDK_MODE = 0x90;
@@ -33,10 +33,11 @@ const ANKI_VEHICLE_SDK_OPTION_OVERRIDE_LOCALIZATION = 0x01;
 class ankiCar {
 
   constructor(name, id) {
-    this._name = name;    // car name
+    this._name = name;            // true car name (Guardian)
     this._id = id.toLowerCase();  // car ID (serial number in MACID format)
-    this._reader = null;  // bluetooth writer characteristic
-    this._writer = null;  // bluetooth reader characteristic
+    this._peripheral = null;      // bluetooth peripheral identifier
+    this._reader = null;          // bluetooth writer characteristic
+    this._writer = null;          // bluetooth reader characteristic
   }
 
   set name(name) {
@@ -92,7 +93,7 @@ class ankiCar {
   }
 }
 
-var ankiCarList = [];
+var ankiCarMap = new Map();
 
 const carIDNameMap = new Map([
   [8, "Ground Shock"],
@@ -138,11 +139,21 @@ noble.on('discover', function (peripheral) {
 
     if (carName != undefined) {
       var address = peripheral.address;
-      console.log('Found car: ' + carName + ' Address: [' + address + ']');
-
       var newCar = new ankiCar(carName, address);
       newCar.peripheral = peripheral;
-      ankiCarList.push(newCar);
+
+      // test if this car name already exists in the map
+      var mapKeyName = carName;
+      var index = 1;
+      while (ankiCarMap.get(mapKeyName) != undefined) {
+        // car with this name exists in the map already so create a new key name
+        index++;
+        mapKeyName = carName + ' (' + index + ')';
+      }
+
+      // add this new named car to the map
+      console.log("Added car: " + mapKeyName + " Type: " + carName + " Address: [" + address + "]");
+      ankiCarMap.set(mapKeyName, newCar);
     }
   }
 });
@@ -155,13 +166,13 @@ noble.on('disconnect', function (peripheral) {
 // Rescan
 //////////////////////////////////////////////////////////
 var rescan = function () {
-  ankiCarList = [];
+  ankiCarMap.clear();
 
   noble.startScanning();
 
   setTimeout(function () {
     noble.stopScanning();
-  }, 2000);
+  }, 4000);
 }
 
 //////////////////////////////////////////////////////////
@@ -179,20 +190,17 @@ var turnOnSdkMode = function (writerCharacteristic) {
   sdkMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SDK_MODE, 1);
   sdkMessage.writeUInt8(0x01, 2); // 0 = off / 1 = on
   sdkMessage.writeUInt8(ANKI_VEHICLE_SDK_OPTION_OVERRIDE_LOCALIZATION, 3); // OVERRIDE_LOCALIZATION (needed for other apis)
-  writerCharacteristic.write(sdkMessage, false, function (err) {
-    //console.log("Turn on SDK done.");
-  });
+  writerCharacteristic.write(sdkMessage, false, function (err) {});
 }
 
 //////////////////////////////////////////////////////////
 // Turn on logging for a given car
-//////////////////////////////////////////////////////////
+////////////////////////////////////////l//////////////////
 var turnOnLogging = function (carName) {
   getReaderCharacteristic(carName).then(function (readerCharacteristic) {
-    readerCharacteristic.notify(true, function (err) {
-    });
-    readerCharacteristic.on('read', function (data, isNotification) {
-      messageParse.parse(data);
+    readerCharacteristic.subscribe();
+    readerCharacteristic.on('data', function (data, isNotification) {
+      messageParse.parse(carName, data);
     });
   });
 }
@@ -225,24 +233,18 @@ var setLaneOffset = function (carName, change) {
 var disconnectCar = function (carName) {
   console.log("Disconnect from car: " + carName);
   var ankiCar = null;
-  var peripheral = null;
 
-  // see if we are already connected
-  for (var i = 0; i < ankiCarList.length; i++) {
-    if (ankiCarList[i].isCar(carName)) {
-      ankiCar = ankiCarList[i];
-      break;
-    }
-  }
-
-  if (ankiCar == null) {
+  ankiCar = ankiCarMap.get(carName);
+  if (ankiCar == undefined) {
     // car is not in the list
     return ("Car already disconnected.");
   }
+
   // if (peripheral == null) {
   //   return ("Car already disconnected.");//TBD: Do a rescan and try again...
   // }
-  peripheral = ankiCar.peripheral;
+
+  var peripheral = ankiCar.peripheral;
   peripheral.disconnect(function (error) {
     console.log("Disconnected from " + carName);
     ankiCar.readerCharacteristic = null;
@@ -259,23 +261,15 @@ var connectCar = function (carName) {
   // If only one of a given car 'e.g. Skull' is around, it is easier to use the name.
   // If two or more cars with the same name are around, it is best to use the address.
   var ankiCar = null;
-  var peripheral = null;
 
-  // see if we are already connected by checking the names
-  for (var i = 0; i < ankiCarList.length; i++) {
-    if (ankiCarList[i].isCar(carName)) {
-      ankiCar = ankiCarList[i];
-    }
-  }
+  // get car using name..need to check if ID is used
+  var ankiCar = ankiCarMap.get(carName);
 
-  if (ankiCar == null) {
+  if (ankiCar == undefined) {
     return ("Car not found");//TBD: Do a rescan and try again...
   }
 
-  peripheral = ankiCar.peripheral;
-  // peripheral.on('disconnect', function () {
-  //   console.log('Car has been disconnected');
-  // });
+  var peripheral = ankiCar.peripheral;
 
   // This connection is async, so return a promise.
   var connectPromise = new Promise(
@@ -288,17 +282,13 @@ var connectCar = function (carName) {
           service.discoverCharacteristics([], function (error, characteristics) {
             var characteristicIndex = 0;
 
-            console.log("Characteristic Length: " + characteristics.length);
             for (var i = 0; i < characteristics.length; i++) {
-              console.log("Looping characteristics: " + i);
               var characteristic = characteristics[i];
               if (characteristic.uuid == ANKI_STR_CHR_READ_UUID) {
-                console.log("Adding readerCharacteristic for car " + carName);
                 ankiCar.readerCharacteristic = characteristic;
               }
 
               if (characteristic.uuid == ANKI_STR_CHR_WRITE_UUID) {
-                console.log("Adding writerCharacterisitc for car " + carName);
                 ankiCar.writerCharacteristic = characteristic;
                 turnOnSdkMode(ankiCar.writerCharacteristic);
               }
@@ -319,38 +309,29 @@ var connectCar = function (carName) {
 function getReaderCharacteristic(carName) {
   var getReaderPromise = new Promise(
     function (resolve, reject) {
-      var ankiCar = null;
+      var ankiCar = ankiCarMap.get(carName);
+      if (ankiCar == undefined) {
+        reject("Cannot find car in map.");
+        return;
+      }
 
-      // If we already have the reader, return it
-      for (var i = 0; i < ankiCarList.length; i++) {
-        if (ankiCarList[i].isCar(carName)) {
-          ankiCar = ankiCarList[i];
-          if (ankiCar.readerCharacteristic != null) {
-            console.log("Resolved reader without connect.");
-            resolve(ankiCar.readerCharacteristic);
-            return;
-          }
-        }
+      if (ankiCar.readerCharacteristic != null) {
+        console.log("Resolved reader without connect.");
+        resolve(ankiCar.readerCharacteristic);
+        return;
       }
 
       // If we are here, there was no reader... we need to try and connect.
-      console.log("Car not connected");
       connectCar(carName).then(function (res) {
-        for (var i = 0; i < ankiCarList.length; i++) {
-          if (ankiCarList[i].isCar(carName)) {
-            ankiCar.ankiCarList[i];
-            if (ankiCar.readerCharacteristic != null) {
-              console.log("Resolved reader after connect.");
-              resolve(ankiCar.readerCharacteristic);
-              return;
-            }
-          }
+        if (ankiCar.readerCharacteristic != null) {
+          console.log("Resolved reader after connect.");
+          resolve(ankiCar.readerCharacteristic);
+          return;
         }
-        reject(readerCharacteristic);
-        return;
       });
-    }
-  );
+
+      reject("Cannot get reader.");
+  });
   return (getReaderPromise);
 }
 
@@ -362,33 +343,29 @@ function getWriterCharacteristic(carName) {
   var getWriterPromise = new Promise(
     function (resolve, reject) {
       // find the car
-      var ankiCar = null;
-      for (var i = 0; i < ankiCarList.length; i++) {
-        if (ankiCarList[i].isCar(carName)) {
-          ankiCar = ankiCarList[i];
-          if (ankiCar.writerCharacteristic != null) {
-            console.log("Resolved writer without connect.");
-            resolve(ankiCar.writerCharacteristic);
-            return;
-          }
-        }
+      var ankiCar = ankiCarMap.get(carName);
+      if (ankiCar == undefined) {
+        reject("Cannot find the car in the map.");
+        return;
       }
 
-      // One must not exist, try once to create one.
-      console.log("Car not connected");
+      if (ankiCar.writerCharacteristic != null) {
+        console.log("Resolved writer without connect.");
+        resolve(ankiCar.writerCharacteristic);
+        return;
+      }
+
+      // One does not exist, try to create one.
       connectCar(carName).then(function (res) {
         // Try again after connect.
-        for (var i = 0; i < ankiCarList.length; i++) {
-          if (ankiCarList[i].isCar(carName)) {
-            ankiCar = ankiCarList[i];
-            writerCharacteristic = ankiCar.writerCharacteristic;
-            console.log("Resolved writer with connect.");
-            resolve(writerCharacteristic);
-            return;
-          }
+        if (ankiCar.writerCharacteristic != null) {
+          console.log("Resolved writer with connect.");
+          resolve(ankiCar.writerCharacteristic);
+          return;
         }
-        reject("Unable to connect to car");
       });
+
+      reject("Could not get writer.");
     });
   return (getWriterPromise);
 }
@@ -433,16 +410,6 @@ var setLights = function (carName, lightValue) {
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x01 0x01 0x00 0x0e 0x0e 0x00 0x08 0x00 0x00 0x00 0x81 0x51 0x7d 0x79 0xf4 0xeb 0x5a 0xd8 0xbe
 
 var setEngineLight = function (carName, red, green, blue) {
-  // Old API - This does not work.
-  //  var lightsPatternMessage = new Buffer(8);
-  //  lightsPatternMessage.writeUInt8(0x07, 0);
-  //  lightsPatternMessage.writeUInt8(0x33, 1); // ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN
-  //  lightsPatternMessage.writeUInt8(channel, 2); // channel (LIGHT_RED,LIGHT_GREEN,LIGHT_BLUE)
-  //  lightsPatternMessage.writeUInt8(effect, 3); // effect (effects: STEADY, FADE, THROB, FLASH, RANDOM)
-  //  lightsPatternMessage.writeUInt8(start, 4); // start
-  //  lightsPatternMessage.writeUInt8(end, 5); // end
-  //  lightsPatternMessage.writeUInt16BE(cycles, 6); // cycles_per_min
-
   // New API.
   var lightsPatternMessage = new Buffer(18);
   lightsPatternMessage.writeUInt8(0x11, 0); // Buffer Size
@@ -481,9 +448,11 @@ var setEngineLight = function (carName, red, green, blue) {
 // Make car do a U-Turn
 //////////////////////////////////////////////////////////
 var uTurn = function (carName) {
-  var uTurnMessage = new Buffer(2);
-  uTurnMessage.writeUInt8(0x02, 0);
-  uTurnMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_TURN_180, 1);
+  var uTurnMessage = new Buffer(4);
+  uTurnMessage.writeUInt8(0x03, 0);
+  uTurnMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_TURN, 1);
+  uTurnMessage.writeUInt8(0x03, 2); // u turn
+  uTurnMessage.writeUInt8(0x00, 3); // turn 0 = immediately, 1 = at next track junction 
 
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
     if (writerCharacteristic != null) {
@@ -554,59 +523,19 @@ var changeLanes = function (carName, change) {
 // Get Battery Levels
 //////////////////////////////////////////////////////////
 var batteryLevel = function (carName) {
-  var batteryPromise = new Promise(
-    function (resolve, reject) {
-      getReaderCharacteristic(carName).then(function (readerCharacteristic) {
-        console.log("Starting parallel");
-        async.parallel([
-          function (callback) {  // Turn on reader notifications
-            console.log("set notify true");
-            readerCharacteristic.notify(true, function (err) {
-            });
-            callback();
-          },
-          function (callback) { // Read data until we get battery info
-            console.log("setting up process data function");
-            function processData(data, isNotification) {
-              console.log("process data function called.");
-              var messageId = data.readUInt8(1);
-              if (messageId == ANKI_VEHICLE_MSG_V2C_BATTERY_LEVEL_RESPONSE) {
-                console.log("Found battery level msg.");
-                var level = data.readUInt16LE(2);
-                //messageParse.parse(data);
-                replyData = level
-                readerCharacteristic.removeListener('read', processData);
-                callback();
-              }
-            }
-            readerCharacteristic.on('read', processData);
-          },
-          function (callback) { // Write the request to get battery info
-            console.log("running writer.");
-            message = new Buffer(2);
-            message.writeUInt8(0x01, 0);
-            message.writeUInt8(ANKI_VEHICLE_MSG_C2V_BATTERY_LEVEL_REQUEST, 1);
-            getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-              writerCharacteristic.write(message, false, function (err) {
-                if (err) {
-                  console.log("Error: " + util.inspect(err, false, null));
-                } else {
-                  console.log("Request Battery Level Success");
-                }
-              });
-              callback();
-            });
-          }],
-          function (err) { /// Done... build reply
-            console.log("Battery value: " + replyData);
-            var finalLevel = Math.floor((replyData / MAX_BATTERY_LEVEL) * 100);
-            resolve(finalLevel);
-            return;
-          }
-        );
-      });
+  getWriterCharacteristic(carName).then(function (writerCharacteristic) {
+    var message = new Buffer(2);
+    message.writeUInt8(0x01, 0);
+    message.writeUInt8(ANKI_VEHICLE_MSG_C2V_BATTERY_LEVEL_REQUEST, 1);
+
+    writerCharacteristic.write(message, false, function (err) {
+      if (err) {
+        console.log("Error: " + util.inspect(err, false, null));
+      } else {
+        console.log("Request Battery Level Success");
+      }
     });
-  return (batteryPromise);
+  });
 }
 
 //////////////////////////////////////////////////////////

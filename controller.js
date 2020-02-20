@@ -4,7 +4,6 @@ const readline = require('readline');
 
 global.gCurrentCar = "";
 
-
 const cli = readline.createInterface({
   input: process.stdin,
   output: process.stdout
