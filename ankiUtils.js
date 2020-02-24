@@ -637,11 +637,9 @@ var mapTrack = function (carName, trackMap) {
     var trackTransition = false;
     var startTrackCount = 0;
 
-    console.log("Starting parallel");
     async.parallel([
       function (callback) {  // Turn on reader notifications
-        readerCharacteristic.notify(true, function (err) {
-        });
+        readerCharacteristic.subscribe();
         callback();
       },
       function (callback) { // Read data until we get track msg
@@ -649,18 +647,17 @@ var mapTrack = function (carName, trackMap) {
         function processData(data, isNotification) {
           var messageId = data.readUInt8(1);
           if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_POSITION_UPDATE) {
-            //console.log("Position Update...");
+            // we have entered a new track section (signalled by the transition event)
+            // so use the track ID to record what sort of section this is in the map
             if (trackTransition == true) {
-              var trackLocation = data.readUInt8(2);
               var trackId = data.readUInt8(3);
-              var offset = data.readFloatLE(4);
-              var speed = data.readUInt16LE(8);
               var clockwise = false;
               if (data.readUInt8(10) == 0x47) {
                 clockwise = true;
               }
+              
               trackMap.addTrackToMap(trackId, clockwise);
-              trackTransition = false;
+
               if (trackId == 33) { // Start track
                 startTrackCount++;
                 if (startTrackCount >= 2) {
@@ -669,6 +666,7 @@ var mapTrack = function (carName, trackMap) {
                   callback();
                 }
               }
+              trackTransition = false;
             }
           } else if (messageId == 0x29) { // Track event (This happens when the car transitions from one track to the next
             console.log("Track Transition Event...");
@@ -684,9 +682,9 @@ var mapTrack = function (carName, trackMap) {
         setSpeed(carName, 500);
         callback();
       }],
+
       function (err) { /// Done... build reply
         console.log("Final call.  Stop car.  Mapping done.");
-        console.log("Starting car...");
         writerCharacteristic = getWriterCharacteristic(carName);
         setSpeed(carName, 0);
       }
