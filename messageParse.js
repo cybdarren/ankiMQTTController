@@ -42,36 +42,8 @@ module.exports = function () {
       else if (msgId == ANKI_VEHICLE_MSG_V2C_BATTERY_LEVEL_RESPONSE) { 
         var level = data.readUInt16LE(2);
         const MAX_BATTERY_LEVEL = 4200 // This is assumed from experience.
-        console.log(carName + " Message[0x" + msgId.toString16 + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
+        console.log(carName + " Message[0x" + msgId.toString(16) + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
       }
-
-      // Lights
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_SET_LIGHTS) { 
-      }
-
-      // Driving Commands
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_SET_SPEED) { 
-      }
-
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_CHANGE_LANE) { 
-      }
-
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_CANCEL_LANE_CHANGE) { 
-      }
-
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_TURN) { 
-      }
-
-      else if (msgId == ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER) { 
-      }
-
-      // Vehicle position notifications
-      // uint8_t     size;
-      // uint8_t     msg_id;
-      // uint8_t     _reserved[2];
-      // float       offset_from_road_center_mm;
-      // uint16_t    speed_mm_per_sec;
-      // uint8_t     is_clockwise;
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_POSITION_UPDATE) { 
         var trackLocation = data.readUInt8(2);
@@ -85,7 +57,7 @@ module.exports = function () {
         //trackMap.addTrackToMap(trackId,clockwise);
         //        console.log("Message[0x"+msgId.toString(16)+"][Position Update]: ",data," Location: ",trackLocation.toString(16)," id:(",trackId,") ",trackId.toString(16)," offset: ",offset," speed: "+speed+" clockwise: ",clockwise," Type: "+trackType);
         //        console.log("Message[0x"+msgId.toString(16)+"][Position Update]: ",data," Location: ",trackLocation.toString(16)," id:(",trackId,") ",trackId.toString(16)," offset: ",offset," speed: "+speed+" clockwise: ",clockwise);
-
+        console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
       }
 
       // Message[0x29][Track Event]:  <Buffer 12 29 00 00 10 bf 1f 49 00 ff ff 00 00 54 01 00 00 37 36>

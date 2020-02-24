@@ -1,4 +1,5 @@
 const async = require('async');
+const util = require('util');
 const noble = require('@abandonware/noble');
 const uuidvalidator = require('validator');
 var messageParse = require('./messageParse.js')();
@@ -185,12 +186,12 @@ var rescan = function () {
 // Turn on sdk mode
 //////////////////////////////////////////////////////////
 var turnOnSdkMode = function (writerCharacteristic) {
-  var sdkMessage = new Buffer(4);
+  var sdkMessage = Buffer.alloc(4);
   sdkMessage.writeUInt8(0x03, 0); // Msg Size
   sdkMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SDK_MODE, 1);
   sdkMessage.writeUInt8(0x01, 2); // 0 = off / 1 = on
   sdkMessage.writeUInt8(ANKI_VEHICLE_SDK_OPTION_OVERRIDE_LOCALIZATION, 3); // OVERRIDE_LOCALIZATION (needed for other apis)
-  writerCharacteristic.write(sdkMessage, false, function (err) {});
+  writerCharacteristic.write(sdkMessage, false, function (err) { });
 }
 
 //////////////////////////////////////////////////////////
@@ -211,17 +212,15 @@ var turnOnLogging = function (carName) {
 //////////////////////////////////////////////////////////
 var setLaneOffset = function (carName, change) {
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    offsetMessage = new Buffer(6);
-    offsetMessage.writeUInt8(0x05, 0); // ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER_SIZE
-    offsetMessage.writeUInt8(0x2c, 1); // ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER
+    offsetMessage = Buffer.alloc(6);
+    offsetMessage.writeUInt8(0x05, 0); 
+    offsetMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER, 1);
     offsetMessage.writeFloatLE(parseFloat(change), 2); // Offset value (?? 68,23,-23,68 seem to be lane values 1-4)
 
     console.log("Sending lane offset: " + change);
     writerCharacteristic.write(offsetMessage, false, function (err) {
       if (err) {
         console.log("Error: " + util.inspect(err, false, null));
-      } else {
-        console.log("Success");
       }
     });
   });
@@ -253,6 +252,22 @@ var disconnectCar = function (carName) {
 }
 
 //////////////////////////////////////////////////////////
+// Disconnect from all cars
+//////////////////////////////////////////////////////////
+var disconnectAllCars = function() {
+  console.log("Disconnecting from all cars.");
+
+  for(var [carMapName, car] of ankiCarMap.entries()) {
+    var peripheral = car.peripheral;
+    peripheral.disconnect(function(error) {
+      console.log("Disconnected from: " + carMapName);
+      car.readerCharacteristic = null;
+      car.writerCharacteristic = null;
+    });
+  }
+}
+
+//////////////////////////////////////////////////////////
 // Connect to a given car
 //////////////////////////////////////////////////////////
 var connectCar = function (carName) {
@@ -275,28 +290,32 @@ var connectCar = function (carName) {
   var connectPromise = new Promise(
     function (resolve, reject) {
       peripheral.connect(function (error) {
-        console.log("Connected to " + ankiCar.name + " : " + peripheral.uuid);
-        peripheral.discoverServices([ANKI_STR_SERVICE_UUID], function (error, services) {
-          var service = services[0];
+        if (error) {
+          reject("Unable to connect to: " + carName);
+        } else {
+          console.log("Connected to " + ankiCar.name + " : " + peripheral.uuid);
+          peripheral.discoverServices([ANKI_STR_SERVICE_UUID], function (error, services) {
+            var service = services[0];
 
-          service.discoverCharacteristics([], function (error, characteristics) {
-            var characteristicIndex = 0;
+            service.discoverCharacteristics([], function (error, characteristics) {
+              var characteristicIndex = 0;
 
-            for (var i = 0; i < characteristics.length; i++) {
-              var characteristic = characteristics[i];
-              if (characteristic.uuid == ANKI_STR_CHR_READ_UUID) {
-                ankiCar.readerCharacteristic = characteristic;
+              for (var i = 0; i < characteristics.length; i++) {
+                var characteristic = characteristics[i];
+                if (characteristic.uuid == ANKI_STR_CHR_READ_UUID) {
+                  ankiCar.readerCharacteristic = characteristic;
+                }
+
+                if (characteristic.uuid == ANKI_STR_CHR_WRITE_UUID) {
+                  ankiCar.writerCharacteristic = characteristic;
+                  turnOnSdkMode(ankiCar.writerCharacteristic);
+                }
               }
-
-              if (characteristic.uuid == ANKI_STR_CHR_WRITE_UUID) {
-                ankiCar.writerCharacteristic = characteristic;
-                turnOnSdkMode(ankiCar.writerCharacteristic);
-              }
-            }
-            resolve();
-            return;
+              resolve();
+              return;
+            });
           });
-        });
+        }
       });
     });
   return (connectPromise);
@@ -316,7 +335,6 @@ function getReaderCharacteristic(carName) {
       }
 
       if (ankiCar.readerCharacteristic != null) {
-        console.log("Resolved reader without connect.");
         resolve(ankiCar.readerCharacteristic);
         return;
       }
@@ -324,14 +342,13 @@ function getReaderCharacteristic(carName) {
       // If we are here, there was no reader... we need to try and connect.
       connectCar(carName).then(function (res) {
         if (ankiCar.readerCharacteristic != null) {
-          console.log("Resolved reader after connect.");
           resolve(ankiCar.readerCharacteristic);
           return;
         }
       });
 
       reject("Cannot get reader.");
-  });
+    });
   return (getReaderPromise);
 }
 
@@ -350,7 +367,6 @@ function getWriterCharacteristic(carName) {
       }
 
       if (ankiCar.writerCharacteristic != null) {
-        console.log("Resolved writer without connect.");
         resolve(ankiCar.writerCharacteristic);
         return;
       }
@@ -359,7 +375,6 @@ function getWriterCharacteristic(carName) {
       connectCar(carName).then(function (res) {
         // Try again after connect.
         if (ankiCar.writerCharacteristic != null) {
-          console.log("Resolved writer with connect.");
           resolve(ankiCar.writerCharacteristic);
           return;
         }
@@ -370,85 +385,76 @@ function getWriterCharacteristic(carName) {
   return (getWriterPromise);
 }
 
-//define LIGHT_HEADLIGHTS    0
-//define LIGHT_BRAKELIGHTS   1
-//define LIGHT_FRONTLIGHTS   2
-//define LIGHT_ENGINE        3
-var setLights = function (carName, lightValue) {
-  var lightMessage = new Buffer(3);
-  lightMessage.writeUInt8(0x02, 0);
-  lightMessage.writeUInt8(0x1d, 1); // ANKI_VEHICLE_MSG_C2V_SET_LIGHTS
-  lightMessage.writeUInt8(lightValue, 2); // Bits 0-3 (mask.  Could always be F) Bits 4-7 (Head/Tail/Brake/???)
-  // E.g. 0x44 ('set' 'headlights')
+// Lights pattern message
+// uint8_t    size;
+// uint8_t    msg_id;
+// uint8_t    channel_count;
+// {
+//    uint8_t     channel;
+//    uint8_t     effect;
+//    uint8_t     start;
+//    uint8_t     end;
+//    uint8_t     cycles_per_10_sec;  
+// }
 
-  console.log("set lights: Getting writer char");
-  getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    if (writerCharacteristic != null) {
-      console.log("Turn on lights");
-      writerCharacteristic.write(lightMessage, false, function (err) {
-        if (err) {
-          console.log("Error: " + util.inspect(err, false, null));
-        } else {
-          console.log("Set LightsSuccess");
-        }
-      });
-    }
-  });
-}
-
-// The lights API for ANKI seems to have changed for Overdrive.  The set lights still works, to some extent, but not used in the game.
-// This 'Set Pattern' APi is used for all the lighting.  However, the API now uses 17bytes rather than 8.  I have not figured them
-// all out.  I sorted out basic STEADY RGB; which was good enough for now.
-//
 // Set lights pattern
-// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x00 0x00 0x00 0x03 0x00 0x00 0x00 0x00 0x02 0x00 0x0e 0x0e 0x00 0xfc 0x01 0xa8 // Blue
+// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 
+//    0x11 0x33 0x03   0x00 0x00 0x00 0x00 0x00   0x03 0x00 0x00 0x00 0x00   0x02 0x00 0x0e 0x0e 0x00   0xfc 0x01 0xa8 // Blue
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x0a 0x0a 0x00 0x03 0x00 0x00 0x00 0x00 0x02 0x00 0x00 0x00 0x00 0x7e 0x8c 0xc2 // Red
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x00 0x00 0x00 0x03 0x00 0x0a 0x0a 0x00 0x02 0x00 0x00 0x00 0x00 0x37 0x9a 0x07 // Green
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x0a 0x0a 0x00 0x03 0x00 0x00 0x00 0x00 0x02 0x00 0x0a 0x0a 0x00 0x68 0xd2 0x79 // Purple
 
 // Brake Lights:(works)
-// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x01 0x01 0x00 0x0e 0x0e 0x00 0x08 0x00 0x00 0x00 0x81 0x51 0x7d 0x79 0xf4 0xeb 0x5a 0xd8 0xbe
+// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 
+//    0x11 0x33 0x01   0x01 0x00 0x0e 0x0e 0x00   0x08 0x00 0x00 0x00 0x81 0x51 0x7d 0x79 0xf4 0xeb 0x5a 0xd8 0xbe
+
+const ANKI_LIGHT_CHANNEL_RED = 0x00;
+const ANKI_LIGHT_CHANNEL_TAIL = 0x01;
+const ANKI_LIGHT_CHANNEL_BLUE = 0x02;
+const ANKI_LIGHT_CHANNEL_GREEN = 0x03;
+const ANKI_LIGHT_CHANNEL_FRONTL = 0x04;
+const ANKI_LIGHT_CHANNEL_FRONTR = 0x05;
+const ANKI_LIGHT_EFFECT_STEADY = 0x00;
+const ANKI_LIGHT_EFFECT_FADE = 0x01;
+const ANKI_LIGHT_EFFECT_THROB = 0x02;
 
 var setEngineLight = function (carName, red, green, blue) {
   // New API.
-  var lightsPatternMessage = new Buffer(18);
-  lightsPatternMessage.writeUInt8(0x11, 0); // Buffer Size
+  var lightsPatternMessage = Buffer.alloc(18);
+  lightsPatternMessage.writeUInt8(0x11, 0);                                   // Buffer Size
   lightsPatternMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN, 1);
-  lightsPatternMessage.writeUInt8(0x03, 2);
-  lightsPatternMessage.writeUInt8(0x00, 3);
-  lightsPatternMessage.writeUInt8(0x00, 4);
-  lightsPatternMessage.writeUInt8(red, 5); // Red Start?
-  lightsPatternMessage.writeUInt8(red, 6); // Red End?
-  lightsPatternMessage.writeUInt8(0x00, 7);
-  lightsPatternMessage.writeUInt8(0x03, 8);
-  lightsPatternMessage.writeUInt8(0x00, 9);
-  lightsPatternMessage.writeUInt8(green, 10); // Green Start?
-  lightsPatternMessage.writeUInt8(green, 11); // Green End?
-  lightsPatternMessage.writeUInt8(0x00, 12);
-  lightsPatternMessage.writeUInt8(0x02, 13); // 2=Solid. Anything else acts like Pulse
-  lightsPatternMessage.writeUInt8(0x00, 14);
-  lightsPatternMessage.writeUInt8(blue, 15); // Blue start? 
-  lightsPatternMessage.writeUInt8(blue, 16); // Blue End?
-  lightsPatternMessage.writeUInt8(0x00, 17);
+  lightsPatternMessage.writeUInt8(0x03, 2);                                   // channel count 3
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_CHANNEL_RED, 3);
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_EFFECT_STEADY, 4);
+  lightsPatternMessage.writeUInt8(red, 5);                                    // Red Start
+  lightsPatternMessage.writeUInt8(red, 6);                                    // Red End
+  lightsPatternMessage.writeUInt8(0x00, 7);                                   // cycles per 10 sec
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_CHANNEL_GREEN, 8);
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_EFFECT_STEADY, 9);
+  lightsPatternMessage.writeUInt8(green, 10);                                 // Green Start
+  lightsPatternMessage.writeUInt8(green, 11);                                 // Green End
+  lightsPatternMessage.writeUInt8(0x00, 12);                                  // cycles per 10 sec
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_CHANNEL_BLUE, 13);
+  lightsPatternMessage.writeUInt8(ANKI_LIGHT_EFFECT_STEADY, 14);
+  lightsPatternMessage.writeUInt8(blue, 15);                                  // Blue start
+  lightsPatternMessage.writeUInt8(blue, 16);                                  // Blue End
+  lightsPatternMessage.writeUInt8(0x00, 17);                                  // cycles per 10 sec
 
-  console.log("set engine lights: ", lightsPatternMessage);
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
     console.log("Turn on lights");
     writerCharacteristic.write(lightsPatternMessage, false, function (err) {
       if (err) {
         console.log("Error: " + util.inspect(err, false, null));
-      } else {
-        console.log("Set LightsSuccess");
       }
     });
   });
 }
 
 //////////////////////////////////////////////////////////
-// Make car do a U-Turn
+// Make the car do a U-Turn
 //////////////////////////////////////////////////////////
 var uTurn = function (carName) {
-  var uTurnMessage = new Buffer(4);
+  var uTurnMessage = Buffer.alloc(4);
   uTurnMessage.writeUInt8(0x03, 0);
   uTurnMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_TURN, 1);
   uTurnMessage.writeUInt8(0x03, 2); // u turn
@@ -460,8 +466,6 @@ var uTurn = function (carName) {
       writerCharacteristic.write(uTurnMessage, false, function (err) {
         if (err) {
           console.log("Error: " + util.inspect(err, false, null));
-        } else {
-          console.log("U-Turn Success");
         }
       });
     }
@@ -470,11 +474,10 @@ var uTurn = function (carName) {
 
 //////////////////////////////////////////////////////////
 // Set car speed
-// 0x0a 0x00 0x04 0x00 0x12 0x0b 0x00 0x06 0x24 0x54 0x01 0xe8 0x03 0x00 0x3b 0xbc 0xa1
 //////////////////////////////////////////////////////////
 var setSpeed = function (carName, speed) {
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    var speedMessage = new Buffer(7);
+    var speedMessage = Buffer.alloc(7);
     speedMessage.writeUInt8(0x06, 0);
     speedMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SET_SPEED, 1);
     speedMessage.writeInt16LE(speed, 2);
@@ -483,8 +486,6 @@ var setSpeed = function (carName, speed) {
     writerCharacteristic.write(speedMessage, false, function (err) {
       if (err) {
         console.log("Error: " + util.inspect(err, false, null));
-      } else {
-        console.log("Set Speed Success");
       }
     });
   });
@@ -501,7 +502,7 @@ var changeLanes = function (carName, change) {
   // Step 1. anki_vehicle_msg_set_offset_from_road_center
   //
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    var changeMessage = new Buffer(12);
+    var changeMessage = Buffer.alloc(12);
     changeMessage.writeUInt8(11, 0); // ANKI_VEHICLE_MSG_C2V_CHANGE_LANE_SIZE
     changeMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_CHANGE_LANE, 1);
     changeMessage.writeInt16LE(250, 2); // horizontal_speed_mm_per_sec
@@ -512,8 +513,6 @@ var changeLanes = function (carName, change) {
     writerCharacteristic.write(changeMessage, false, function (err) {
       if (err) {
         console.log("Error: " + util.inspect(err, false, null));
-      } else {
-        console.log("Success");
       }
     });
   });
@@ -524,15 +523,13 @@ var changeLanes = function (carName, change) {
 //////////////////////////////////////////////////////////
 var batteryLevel = function (carName) {
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    var message = new Buffer(2);
+    var message = Buffer.alloc(2);
     message.writeUInt8(0x01, 0);
     message.writeUInt8(ANKI_VEHICLE_MSG_C2V_BATTERY_LEVEL_REQUEST, 1);
 
     writerCharacteristic.write(message, false, function (err) {
       if (err) {
         console.log("Error: " + util.inspect(err, false, null));
-      } else {
-        console.log("Request Battery Level Success");
       }
     });
   });
@@ -542,113 +539,86 @@ var batteryLevel = function (carName) {
 // Ping / Response
 //////////////////////////////////////////////////////////
 var ping = function (carName) {
-  var pingPromise = new Promise(
-    function (resolve, reject) {
-      getReaderCharacteristic(carName).then(function (readerCharacteristic) {
-        async.parallel([
-          function (callback) {  // Turn on reader notifications
-            console.log("set notify true");
-            readerCharacteristic.notify(true, function (err) {
-            });
-            callback();
-          },
-          function (callback) { // Read data until we get ping response
-            console.log("setting up process data function");
-            function processData(data, isNotification) {
-              console.log("process data function called.");
-              var messageId = data.readUInt8(1);
-              if (messageId == ANKI_VEHICLE_MSG_V2C_PING_RESPONSE) {
-                console.log("Found ping msg.");
-                replyData = "Success";
-                readerCharacteristic.removeListener('read', processData);
-                callback();
-              }
-            }
-            readerCharacteristic.on('read', processData);
-          },
-          function (callback) { // Write the request to ping
-            console.log("running writer.");
-            message = new Buffer(2);
-            message.writeUInt8(0x01, 0);
-            message.writeUInt8(ANKI_VEHICLE_MSG_C2V_PING_REQUEST, 1);
-            getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-              writerCharacteristic.write(message, false, function (err) {
-                if (err) {
-                  console.log("Error: " + util.inspect(err, false, null));
-                } else {
-                  console.log("Request Battery Level Success");
-                }
-              });
-              callback();
-            });
-          }],
-          function (err) { /// Done... build reply
-            console.log("Ping Response: ", replyData);
-            resolve(replyData);
-            return;
-          }
-        );
-      });
+  var message = Buffer.alloc(2);
+  message.writeUInt8(0x01, 0);
+  message.writeUInt8(ANKI_VEHICLE_MSG_C2V_PING_REQUEST, 1);
+  getWriterCharacteristic(carName).then(function (writerCharacteristic) {
+    writerCharacteristic.write(message, false, function (err) {
+      if (err) {
+        console.log("Error: " + util.inspect(err, false, null));
+      }
     });
-  return (pingPromise);
+  });
 }
 
 //////////////////////////////////////////////////////////
-// Track Count Travel.  Makes a car travel 'x' number of tracks, then stops.
+// Audit cars
+//////////////////////////////////////////////////////////
+var auditCars = function() {
+  ankiCarMap.forEach(function(value, key) {
+    console.log("Car: " + key + " Data: " + util.inspect(value, false, 1));
+  });
+}
+
+//////////////////////////////////////////////////////////
+// Track Count Travel.  Makes a car travel 'x' number of tracks, then stop.
 //////////////////////////////////////////////////////////
 var trackCountTravel = function (carName, tracksToTravel, speed) {
   getReaderCharacteristic(carName).then(function (readerCharacteristic) {
-    console.log("in then after getting a reader...");
     if (readerCharacteristic == null) {
       return ("Unable to find and connect to car " + carName);
     }
-    var replyData = null;
     var trackCount = 0;
 
-    console.log("Starting parallel");
-    async.parallel([
-      function (callback) {  // Turn on reader notifications
-        readerCharacteristic.notify(true, function (err) {
-        });
-        callback();
-      },
-      function (callback) { // Read data until we get track msg
-        console.log("Starting reader...");
-        function processData(data, isNotification) {
-          var messageId = data.readUInt8(1);
-          if (messageId == '41') {  // Track event (This happens when the car transitions from one track to the next)
-            trackCount = trackCount + 1;
-            console.log("Track Count: " + trackCount + "/" + tracksToTravel);
-            if (trackCount >= tracksToTravel) {
-              // stop the car
-              readerCharacteristic.removeListener('read', processData);
-              callback();
+    async.series(
+      [
+        function(callback) {
+          // start the reader
+          console.log("Starting reader...");
+          trackCount = 0;
+          readerCharacteristic.subscribe();
+          callback(null, 0);
+        },
+
+        function (callback) { // Write the request to start the car travelling
+          console.log("Starting car...");
+          trackCount = 0;
+          setSpeed(carName, speed);
+          callback(null, 0);
+        },
+
+        function (callback) { 
+          function processData(data, isNotification) { 
+            var messageId = data.readUInt8(1);
+            if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_TRANSITION_UPDATE) {  
+              console.log(carName + " [Track Event]: ", data);
+              // Track event (This happens when the car transitions from one track to the next)
+              trackCount = trackCount + 1;
+              console.log("Track Count: " + trackCount + "/" + tracksToTravel);
+              if (trackCount >= tracksToTravel) {
+                //readerCharacteristic.unsubscribe();
+                readerCharacteristic.removeListener('data', processData);
+                callback(null, trackCount);
+              }
             }
           }
+          readerCharacteristic.on('data', processData);
         }
-        readerCharacteristic.on('read', processData);
-      },
-      function (callback) { // Write the request to start the car traveling
-        console.log("Starting car...");
-        writerCharacteristic = getWriterCharacteristic(carName);
-        setSpeed(carName, speed);
-        callback();
-      }],
-      function (err) { /// Done... build reply
-        console.log("Final call.  Stop car");
-        console.log("Starting car...");
-        writerCharacteristic = getWriterCharacteristic(carName);
-        setSpeed(carName, 0);
-        disconnectCar(carName);
-      }
-    );
+      ],
+
+      function (err, results) {
+          console.log("Final call.  Stop car: " + results);
+          trackCount = 0;
+          // readerCharacteristic.unsubscribe();
+          setSpeed(carName, 0);
+        }
+      );
   });
 }
 
 var mapTrack = function (carName, trackMap) {
   console.log("Map Track Start...");
   trackMap.resetTrackMap();
-  //rescan(); // try to make sure we can see the car
   getReaderCharacteristic(carName).then(function (readerCharacteristic) {
     if (readerCharacteristic == null) {
       return ("Unable to find and connect to car " + carName);
@@ -721,15 +691,16 @@ module.exports = function () {
     rescan: rescan,
     connectCar: connectCar,
     disconnectCar: disconnectCar,
+    disconnectAllCars: disconnectAllCars,
     turnOnSdkMode: turnOnSdkMode,
     setLaneOffset: setLaneOffset,
-    setLights: setLights,
     setEngineLight: setEngineLight,
     setSpeed: setSpeed,
     turnOnLogging: turnOnLogging,
     changeLanes: changeLanes,
     uTurn: uTurn,
     ping: ping,
+    auditCars: auditCars,
     batteryLevel: batteryLevel,
     trackCountTravel: trackCountTravel,
     mapTrack: mapTrack
