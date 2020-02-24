@@ -213,7 +213,7 @@ var turnOnLogging = function (carName) {
 var setLaneOffset = function (carName, change) {
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
     offsetMessage = Buffer.alloc(6);
-    offsetMessage.writeUInt8(0x05, 0); 
+    offsetMessage.writeUInt8(0x05, 0);
     offsetMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER, 1);
     offsetMessage.writeFloatLE(parseFloat(change), 2); // Offset value (?? 68,23,-23,68 seem to be lane values 1-4)
 
@@ -254,12 +254,12 @@ var disconnectCar = function (carName) {
 //////////////////////////////////////////////////////////
 // Disconnect from all cars
 //////////////////////////////////////////////////////////
-var disconnectAllCars = function() {
+var disconnectAllCars = function () {
   console.log("Disconnecting from all cars.");
 
-  for(var [carMapName, car] of ankiCarMap.entries()) {
+  for (var [carMapName, car] of ankiCarMap.entries()) {
     var peripheral = car.peripheral;
-    peripheral.disconnect(function(error) {
+    peripheral.disconnect(function (error) {
       console.log("Disconnected from: " + carMapName);
       car.readerCharacteristic = null;
       car.writerCharacteristic = null;
@@ -400,7 +400,8 @@ function getWriterCharacteristic(carName) {
 // Set lights pattern
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 
 //    0x11 0x33 0x03   0x00 0x00 0x00 0x00 0x00   0x03 0x00 0x00 0x00 0x00   0x02 0x00 0x0e 0x0e 0x00   0xfc 0x01 0xa8 // Blue
-// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x0a 0x0a 0x00 0x03 0x00 0x00 0x00 0x00 0x02 0x00 0x00 0x00 0x00 0x7e 0x8c 0xc2 // Red
+// Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 
+//    0x11 0x33 0x03   0x00 0x00 0x0a 0x0a 0x00   0x03 0x00 0x00 0x00 0x00   0x02 0x00 0x00 0x00 0x00   0x7e 0x8c 0xc2 // Red
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x00 0x00 0x00 0x03 0x00 0x0a 0x0a 0x00 0x02 0x00 0x00 0x00 0x00 0x37 0x9a 0x07 // Green
 // Game: 0x15 0x00 0x04 0x00 0x52 0x0b 0x00 0x11 0x33 0x03 0x00 0x00 0x0a 0x0a 0x00 0x03 0x00 0x00 0x00 0x00 0x02 0x00 0x0a 0x0a 0x00 0x68 0xd2 0x79 // Purple
 
@@ -499,8 +500,6 @@ var changeLanes = function (carName, change) {
   // anki_vehicle_msg_set_offset_from_road_center
   // anki_vehicle_msg_change_lane
 
-  // Step 1. anki_vehicle_msg_set_offset_from_road_center
-  //
   getWriterCharacteristic(carName).then(function (writerCharacteristic) {
     var changeMessage = Buffer.alloc(12);
     changeMessage.writeUInt8(11, 0); // ANKI_VEHICLE_MSG_C2V_CHANGE_LANE_SIZE
@@ -554,8 +553,8 @@ var ping = function (carName) {
 //////////////////////////////////////////////////////////
 // Audit cars
 //////////////////////////////////////////////////////////
-var auditCars = function() {
-  ankiCarMap.forEach(function(value, key) {
+var auditCars = function () {
+  ankiCarMap.forEach(function (value, key) {
     console.log("Car: " + key + " Data: " + util.inspect(value, false, 1));
   });
 }
@@ -572,7 +571,7 @@ var trackCountTravel = function (carName, tracksToTravel, speed) {
 
     async.series(
       [
-        function(callback) {
+        function (callback) {
           // start the reader
           console.log("Starting reader...");
           trackCount = 0;
@@ -587,19 +586,29 @@ var trackCountTravel = function (carName, tracksToTravel, speed) {
           callback(null, 0);
         },
 
-        function (callback) { 
-          function processData(data, isNotification) { 
+        function (callback) {
+          function processData(data, isNotification) {
             var messageId = data.readUInt8(1);
-            if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_TRANSITION_UPDATE) {  
+            if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_TRANSITION_UPDATE) {
               console.log(carName + " [Track Event]: ", data);
               // Track event (This happens when the car transitions from one track to the next)
               trackCount = trackCount + 1;
               console.log("Track Count: " + trackCount + "/" + tracksToTravel);
               if (trackCount >= tracksToTravel) {
-                //readerCharacteristic.unsubscribe();
                 readerCharacteristic.removeListener('data', processData);
                 callback(null, trackCount);
               }
+            } else if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_POSITION_UPDATE) {
+              var trackLocation = data.readUInt8(2);
+              var trackId = data.readUInt8(3);
+              var offset = data.readFloatLE(4);
+              var speed = data.readUInt16LE(8);
+              var clockwise = false;
+              if (data.readUInt8(10) == 0x47) {
+                clockwise = true;
+              }
+              console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise +
+                  " offset: " + offset + " speed: " + speed);
             }
           }
           readerCharacteristic.on('data', processData);
@@ -607,12 +616,12 @@ var trackCountTravel = function (carName, tracksToTravel, speed) {
       ],
 
       function (err, results) {
-          console.log("Final call.  Stop car: " + results);
-          trackCount = 0;
-          // readerCharacteristic.unsubscribe();
-          setSpeed(carName, 0);
-        }
-      );
+        console.log("Final call.  Stop car: " + results);
+        trackCount = 0;
+        readerCharacteristic.unsubscribe();
+        setSpeed(carName, 0);
+      }
+    );
   });
 }
 
