@@ -1,9 +1,11 @@
-var ankiNodeUtils = require('./ankiUtils.js')();
-var prepareMessages = require('./prepareMessages.js')();
+const ankiNodeUtils = require('./ankiUtils.js')();
+const config = require('./config-wrapper.js')();
+const prepareMessages = require('./prepareMessages.js')();
 const readline = require('readline');
 const mqtt = require('mqtt');
 
-global.gCurrentCar = "";
+
+
 
 const cli = readline.createInterface({
   input: process.stdin,

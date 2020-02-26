@@ -2,7 +2,7 @@ const async = require('async');
 const util = require('util');
 const noble = require('@abandonware/noble');
 const uuidvalidator = require('validator');
-var messageParse = require('./messageParse.js')();
+const messageParse = require('./messageParse.js')();
 
 const MAX_BATTERY_LEVEL = 4200;
 const ANKI_STR_SERVICE_UUID = 'be15beef6186407e83810bd89c4d8df4';
@@ -30,6 +30,7 @@ const ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN = 0x33;
 const ANKI_VEHICLE_MSG_C2V_SET_CONFIG_PARAMS = 0x45;
 const ANKI_VEHICLE_MSG_C2V_SDK_MODE = 0x90;
 const ANKI_VEHICLE_SDK_OPTION_OVERRIDE_LOCALIZATION = 0x01;
+
 
 class ankiCar {
 
@@ -118,6 +119,7 @@ const carIDNameMap = new Map([
   [18, "MXT"],
   [19, "ICE Charger"]
 ]);
+
 
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
