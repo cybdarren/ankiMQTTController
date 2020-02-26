@@ -37,6 +37,7 @@ class ankiCar {
     this._name = name;            // true car name (Guardian)
     this._id = id.toLowerCase();  // car ID (serial number in MACID format)
     this._peripheral = null;      // bluetooth peripheral identifier
+    this._connected = null;       // connected to the peripheral
     this._reader = null;          // bluetooth writer characteristic
     this._writer = null;          // bluetooth reader characteristic
   }
@@ -52,10 +53,19 @@ class ankiCar {
   set peripheral(peripheral) {
     this._peripheral = peripheral; // bluetooth peripheral
     this._id = peripheral.address.toLowerCase();
+    this._connected = false;
   }
 
   get peripheral() {
     return this._peripheral;
+  }
+
+  set connected(newState) {
+    this._connected = newState;
+  }
+
+  get connected() {
+    return this._connected;
   }
 
   set readerCharacteristic(characteristic) {
@@ -142,6 +152,7 @@ noble.on('discover', function (peripheral) {
       var address = peripheral.address;
       var newCar = new ankiCar(carName, address);
       newCar.peripheral = peripheral;
+      newCar.connected = false;
 
       // test if this car name already exists in the map
       var mapKeyName = carName;
@@ -245,9 +256,10 @@ var disconnectCar = function (carName) {
 
   var peripheral = ankiCar.peripheral;
   peripheral.disconnect(function (error) {
-    console.log("Disconnected from " + carName);
+    console.log("Disconnected from: " + carName);
     ankiCar.readerCharacteristic = null;
     ankiCar.writerCharacteristic = null;
+    ankiCar.connected = false;
   });
 }
 
@@ -258,12 +270,15 @@ var disconnectAllCars = function () {
   console.log("Disconnecting from all cars.");
 
   for (var [carMapName, car] of ankiCarMap.entries()) {
-    var peripheral = car.peripheral;
-    peripheral.disconnect(function (error) {
-      console.log("Disconnected from: " + carMapName);
-      car.readerCharacteristic = null;
-      car.writerCharacteristic = null;
-    });
+    if (car.connected == true) {
+      var peripheral = car.peripheral;
+      peripheral.disconnect(function (error) {
+        console.log("Disconnected from: " + carMapName);
+        car.readerCharacteristic = null;
+        car.writerCharacteristic = null;
+        car.connected = false;
+      });
+    }
   }
 }
 
@@ -289,11 +304,19 @@ var connectCar = function (carName) {
   // This connection is async, so return a promise.
   var connectPromise = new Promise(
     function (resolve, reject) {
+      if (ankiCar.connected == true) {
+        // already connected
+        resolve();
+        return;
+      }
+
       peripheral.connect(function (error) {
         if (error) {
-          reject("Unable to connect to: " + carName);
+          reject("Unable to connect to: " + carName + " err: " + error);
         } else {
           console.log("Connected to " + ankiCar.name + " : " + peripheral.uuid);
+          ankiCar.connected = true;
+
           peripheral.discoverServices([ANKI_STR_SERVICE_UUID], function (error, services) {
             var service = services[0];
 
@@ -317,7 +340,8 @@ var connectCar = function (carName) {
           });
         }
       });
-    });
+    }
+  );
   return (connectPromise);
 }
 
@@ -608,7 +632,7 @@ var trackCountTravel = function (carName, tracksToTravel, speed) {
                 clockwise = true;
               }
               console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise +
-                  " offset: " + offset + " speed: " + speed);
+                " offset: " + offset + " speed: " + speed);
             }
           }
           readerCharacteristic.on('data', processData);
@@ -655,7 +679,7 @@ var mapTrack = function (carName, trackMap) {
               if (data.readUInt8(10) == 0x47) {
                 clockwise = true;
               }
-              
+
               trackMap.addTrackToMap(trackId, clockwise);
 
               if (trackId == 33) { // Start track

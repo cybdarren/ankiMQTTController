@@ -54,9 +54,6 @@ module.exports = function () {
         if (data.readUInt8(10) == 0x47) {
           clockwise = true;
         }
-        //trackMap.addTrackToMap(trackId,clockwise);
-        //        console.log("Message[0x"+msgId.toString(16)+"][Position Update]: ",data," Location: ",trackLocation.toString(16)," id:(",trackId,") ",trackId.toString(16)," offset: ",offset," speed: "+speed+" clockwise: ",clockwise," Type: "+trackType);
-        //        console.log("Message[0x"+msgId.toString(16)+"][Position Update]: ",data," Location: ",trackLocation.toString(16)," id:(",trackId,") ",trackId.toString(16)," offset: ",offset," speed: "+speed+" clockwise: ",clockwise);
         console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
       }
 
@@ -72,13 +69,14 @@ module.exports = function () {
         var leftWheelDistance = data.readUInt8(16);
         var rightWheelDistance = data.readUInt8(17);
         trackStyle = ""
-        if (leftWheelDistance == rightWheelDistance) { trackStyle = "Straight"; }
-        else if (leftWheelDistance == (rightWheelDistance + 1)) { trackStyle = "Straight"; }
-        else if (leftWheelDistance == (rightWheelDistance - 1)) { trackStyle = "Straight"; }
-        else if (leftWheelDistance == (rightWheelDistance + 2)) { trackStyle = "Straight"; }
-        else if (leftWheelDistance == (rightWheelDistance - 2)) { trackStyle = "Straight"; }
-        else if (leftWheelDistance > rightWheelDistance) { trackStyle = "Right Turn"; }
-        else if (leftWheelDistance < rightWheelDistance) { trackStyle = "Left Turn"; }
+        var absDist = Math.abs(leftWheelDistance - rightWheelDistance);
+        if (absDist < 3) {
+          trackStyle = "Straight";
+        } else if (leftWheelDistance < rightWheelDistance) {
+          trackStyle = "Left Turn";
+        } else if (leftWheelDistance > rightWheelDistance) {
+          trackStyle = "Right Turn";
+        }
 
         // There is a shorter segment for the starting line track.
         crossedStartingLine = "";
@@ -97,12 +95,9 @@ module.exports = function () {
         console.log(carName + " Message[0x" + msgId.toString(16) + "][Offset From Road Center Update]: ", data);
       }
 
-      else if (msgId == 0x41) {
-        console.log("Message[0x" + msgId.toString(16) + "][???]: ", data);
-      }
-
       else {
-        console.log("Message[0x" + msgId.toString(16) + "][???]: ", data);
+        // Stop printing unknown messages
+        // console.log("Message[0x" + msgId.toString(16) + "][???]: ", data);
       }
     }
   };

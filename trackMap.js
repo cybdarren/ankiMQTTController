@@ -1,7 +1,8 @@
 
 // create two-dimensional array to hold the track
-var trackShape = new Array(1);
-trackShape[0] = new Array(1);
+//var trackShape = new Array(1);
+//trackShape[0] = new Array(1);
+var trackShape = new Array([[],[]])
 
 var startFound = false;
 var mapX = 0;
@@ -98,6 +99,7 @@ var addTrackToMap = function (trackId, clockwise) {
   if (trackType == "Start") {
     if (startFound == true) { // We've already done the whole map.
       trackMapDone = true;
+      return;
     }
     startFound = true;
     trackShape[mapY][mapX] = 1;
@@ -122,18 +124,18 @@ var addTrackToMap = function (trackId, clockwise) {
   if (trackType == "Straight") {
     switch(mapDir) {
       case 0:
-        newMapTile = 3;
+        newMapTile = TRACK_STRAIGHT_VERT;
         mapY -= 1;
         break;
       case 2:
-        newMapTile = 3;
+        newMapTile = TRACK_STRAIGHT_VERT;
         mapX += 1;
         break;
       case 1:
-        newMapTile = 2;
+        newMapTile = TRACK_STRAIGHT_HORIZ;
         break;
       case 3:
-        newMapTile = 2;
+        newMapTile = TRACK_STRAIGHT_HORIZ;
         mapX -= 1;
         break;
     }
@@ -144,22 +146,22 @@ var addTrackToMap = function (trackId, clockwise) {
       // right hand turns
       switch (mapDir) {
         case 0:
-          newMapTile = 4;
+          newMapTile = TRACK_CURVE_NE;
           mapDir = 1;
           mapX += 1;
           break;
         case 1:
-          newMapTile = 5;
+          newMapTile = TRACK_CURVE_ES;
           mapDir = 2;
           mapY += 1;
           break;
         case 2:
-          newMapTile = 7;
+          newMapTile = TRACK_CURVE_SW;
           mapDir = 3;
           mapX -= 1;
           break;
         case 3:
-          newMapTile = 6;
+          newMapTile = TRACK_CURVE_WN;
           mapDir = 0;
           mapY -= 1;
           break;  
@@ -168,22 +170,22 @@ var addTrackToMap = function (trackId, clockwise) {
       // left hand turns
       switch (mapDir) {
         case 0:
-          newMapTile = 5;
+          newMapTile = TRACK_CURVE_ES;
           mapDir = 3;
           mapX -= 1;
           break;
         case 1:
-          newMapTile = 7;
+          newMapTile = TRACK_CURVE_SW;
           mapDir = 0;
           mapY -= 1;
           break;
         case 2:
-          newMapTile = 6;
+          newMapTile = TRACK_CURVE_WN;
           mapDir = 1;
           mapX += 1;
           break;
         case 3:
-          newMapTile = 4;
+          newMapTile = TRACK_CURVE_NE;
           mapDir = 2;
           mapY += 1;
           break;
@@ -192,7 +194,7 @@ var addTrackToMap = function (trackId, clockwise) {
   }
 
   if (trackType == "Crossover") {
-    newMapTile = 8;
+    newMapTile = TRACK_CROSSOVER;
 
     switch (mapDir) {
       case 0:
@@ -210,11 +212,14 @@ var addTrackToMap = function (trackId, clockwise) {
     }
   }
 
-  if (currentMapTile == 0) {
-    // empty map place so just store the contents
+  if (currentMapTile == TRACK_EMPTY) {
+    // empty map location currently so just store the contents
     trackShape[currentMapY][currentMapX] = newMapTile;
+  } else if (currentMapTile == 8) {
+    // crossover so don't change the existing piece
   } else {
-    // map already filed so bitshift new contents and store in upper nibble
+    // map already has a piece at this location 
+    // bit shift the upper tile and place on the map
     newMapTile = newMapTile << 4;
     newMapTile = newMapTile | currentMapTile;
     trackShape[currentMapY][currentMapX] = newMapTile;
@@ -222,363 +227,6 @@ var addTrackToMap = function (trackId, clockwise) {
 
   // resize the track shape if required
   updateTrackShape();
-
-  // ///////////////////////////////////////////////////////////////
-  // if (trackType == "Straight") {
-  //   if (mapDir == 1) { // East
-  //     switch (trackShape[mapY][mapX]) {
-  //       case 0:
-  //         trackShape[mapY][mapX] = 2;
-  //         break;
-  //       case 3:
-  //         trackShape[mapY][mapX] = 8;
-  //         break;
-  //       case 4:
-  //         trackShape[mapY][mapX] = 16;
-  //         break;
-  //       case 5:
-  //         trackShape[mapY][mapX] = 17;
-  //         break;
-  //       case 6:
-  //         trackShape[mapY][mapX] = 18;
-  //         break;
-  //       case 7:
-  //         trackShape[mapY][mapX] = 19;
-  //         break;
-  //       default:
-  //         break; // Leave it alone if something is there.
-  //     }
-  //     mapX += 1;
-  //     updateTrackShape();
-  //   }
-  //   else if (mapDir == 2) { // South
-  //     switch (trackShape[mapY][mapX]) {
-  //       case 0:
-  //         trackShape[mapY][mapX] = 3;
-  //         break;
-  //       case 4:
-  //         trackShape[mapY][mapX] = 12;
-  //         break;
-  //       case 5:
-  //         trackShape[mapY][mapX] = 13;
-  //         break;
-  //       case 6:
-  //         trackShape[mapY][mapX] = 14;
-  //         break;
-  //       case 7:
-  //         trackShape[mapY][mapX] = 15;
-  //         break;
-  //       case 2:
-  //         trackShape[mapY][mapX] = 9;
-  //         break;
-  //       default:
-  //         break; // Leave it alone if something is there.
-  //     }
-  //     mapY += 1;
-  //     updateTrackShape();
-  //   }
-  //   else if (mapDir == 3) { // West
-  //     switch (trackShape[mapY][mapX]) {
-  //       case 0:
-  //         trackShape[mapY][mapX] = 2;
-  //         break;
-  //       case 3:
-  //         trackShape[mapY][mapX] = 8; // Horz over Vert
-  //         break;
-  //       case 4:
-  //         trackShape[mapY][mapX] = 16;
-  //         break;
-  //       case 5:
-  //         trackShape[mapY][mapX] = 17;
-  //         break;
-  //       case 6:
-  //         trackShape[mapY][mapX] = 18;
-  //         break;
-  //       case 7:
-  //         trackShape[mapY][mapX] = 19;
-  //         break;
-  //       default:
-  //         break; // Leave it alone if something is there.
-  //     }
-  //     mapX -= 1;
-  //     updateTrackShape();
-  //   }
-  //   else if (mapDir == 0) { // North
-  //     switch (trackShape[mapY][mapX]) {
-  //       case 0:
-  //         trackShape[mapY][mapX] = 3;
-  //         break;
-  //       case 4:
-  //         trackShape[mapY][mapX] = 12;
-  //         break;
-  //       case 5:
-  //         trackShape[mapY][mapX] = 13;
-  //         break;
-  //       case 6:
-  //         trackShape[mapY][mapX] = 14;
-  //         break;
-  //       case 7:
-  //         trackShape[mapY][mapX] = 15;
-  //         break;
-  //       case 2:
-  //         trackShape[mapY][mapX] = 9;
-  //         break;
-  //       default:
-  //         break; // Leave it alone if something is there.
-  //     }
-  //     mapY -= 1;
-  //     updateTrackShape();
-  //   }
-  // }
-
-  // if (trackType == "Turn") {
-  //   if (clockwise) {
-  //     trackType = "Right Turn";
-  //     if (mapDir == 1) { // East
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0: // Nothing there.
-  //           trackShape[mapY][mapX] = 5;
-  //           break;
-  //         case 2: // Over horiz
-  //           trackShape[mapY][mapX] = 17;
-  //           break;
-  //         case 3: // Over vert
-  //           trackShape[mapY][mapX] = 13;
-  //           break;
-  //         case 4: // Over corner turn
-  //           trackShape[mapY][mapX] = 22;
-  //           break;
-  //         case 6: // Over corner turn
-  //           trackShape[mapY][mapX] = 11;
-  //           break;
-  //         case 7: // Over corner turn
-  //           trackShape[mapY][mapX] = 24;
-  //           break;
-  //         default: // Don't touch
-  //           break;
-  //       }
-  //       mapDir = 2; // South
-  //       mapY += 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 2) { // South
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 7;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 19;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 15;
-  //           break;
-  //         case 4:
-  //           trackShape[mapY][mapX] = 10;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 24;
-  //           break;
-  //         case 6:
-  //           trackShape[mapY][mapX] = 21;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 3; // West
-  //       mapX -= 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 3) { // West
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 6;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 18;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 14;
-  //           break;
-  //         case 4:
-  //           trackShape[mapY][mapX] = 23;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 11;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 21;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 0; // North
-  //       mapY -= 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 0) { // North
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 4;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 16;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 12;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 22;
-  //           break;
-  //         case 6:
-  //           trackShape[mapY][mapX] = 23;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 10;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 1; // East
-  //       mapX += 1;
-  //       updateTrackShape();
-  //     }
-  //   } else {
-  //     trackType = "Left Turn";
-  //     if (mapDir == 1) { // East
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 7;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 19;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 15;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 24;
-  //           break;
-  //         case 6:
-  //           trackShape[mapY][mapX] = 21;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 10;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 0; // North
-  //       mapY -= 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 2) { // South
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 6;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 18;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 14;
-  //           break;
-  //         case 4:
-  //           trackShape[mapY][mapX] = 23;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 11;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 21;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 1; // East
-  //       mapX += 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 3) { // West
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 4;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 16;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 12;
-  //           break;
-  //         case 5:
-  //           trackShape[mapY][mapX] = 22;
-  //           break;
-  //         case 6:
-  //           trackShape[mapY][mapX] = 23;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 10;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 2; // South
-  //       mapY += 1;
-  //       updateTrackShape();
-  //     }
-  //     else if (mapDir == 0) { // North
-  //       switch (trackShape[mapY][mapX]) {
-  //         case 0:
-  //           trackShape[mapY][mapX] = 5;
-  //           break;
-  //         case 2:
-  //           trackShape[mapY][mapX] = 17;
-  //           break;
-  //         case 3:
-  //           trackShape[mapY][mapX] = 13;
-  //           break;
-  //         case 4:
-  //           trackShape[mapY][mapX] = 22;
-  //           break;
-  //         case 6:
-  //           trackShape[mapY][mapX] = 11;
-  //           break;
-  //         case 7:
-  //           trackShape[mapY][mapX] = 24;
-  //           break;
-  //         default:
-  //           break;
-  //       }
-  //       mapDir = 3; // West
-  //       mapX -= 1;
-  //       updateTrackShape();
-  //     }
-  //   }
-  // }
-
-  // if (trackType == "Crossover") {
-  //   switch (trackShape[mapY][mapX]) {
-  //     case 0:
-  //       trackShape[mapY][mapX] = 20;
-  //       break;
-  //     default:
-  //       break; // Leave it alone if something is there.
-  //   }
-
-  //   if (mapDir == 1) { // East
-  //     mapX += 1;
-  //   }
-  //   else if (mapDir == 2) { // South
-  //     mapY += 1;
-  //   }
-  //   else if (mapDir == 3) { // West
-  //     mapX -= 1;
-  //   }
-  //   else if (mapDir == 0) { // North
-  //     mapY -= 1;
-  //   }
-  //   updateTrackShape();
-  // }
-
 
   if (trackType == "unknown") {
     console.log("Unknown type: ", trackId);
@@ -612,6 +260,14 @@ var setTrackMapData = function (newMap) {
   trackShape = newMap;
 }
 
+// map possible tile values into bitmap indexes, the location of the tile type
+// in this array indicates which bitmap should be used to represent the tile
+const mapTrackImages = [
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x23, 0x32, 0x47, 0x65, 
+  0x43, 0x53, 0x63, 0x73, 0x42, 0x52, 0x62, 0x72, 0x08, 0x67, 0x54, 0x46,
+  0x75
+];
+
 var getTrackMap = function (size) {
   var Canvas = require('canvas');
   var Image = Canvas.Image;
@@ -632,9 +288,15 @@ var getTrackMap = function (size) {
 
   var canvas = new Canvas.createCanvas(imgSizeX, imgSizeY);
   var ctx = canvas.getContext('2d');
+  var trackImageIndex = 0;
+  var trackImage = 0;
   for (var x = 0; x < trackShape[0].length; x++) {
     for (var y = 0; y < trackShape.length; y++) {
-      ctx.drawImage(segmentImages[trackShape[y][x]], x * segmentSize, y * segmentSize)
+      // get the appropriate index for a given shape
+      trackImageIndex = trackShape[y][x];
+      trackImage = mapTrackImages.indexOf(trackImageIndex);
+      if (trackImage == -1) trackImage = 0;
+      ctx.drawImage(segmentImages[trackImage], x * segmentSize, y * segmentSize)
     }
   }
   return (canvas);
