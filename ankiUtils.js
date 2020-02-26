@@ -2,7 +2,7 @@ const async = require('async');
 const util = require('util');
 const noble = require('@abandonware/noble');
 const uuidvalidator = require('validator');
-var messageParse = require('./messageParse.js')();
+var messageParse = require('./parseMessage.js')();
 
 const MAX_BATTERY_LEVEL = 4200;
 const ANKI_STR_SERVICE_UUID = 'be15beef6186407e83810bd89c4d8df4';
@@ -119,60 +119,67 @@ const carIDNameMap = new Map([
   [19, "ICE Charger"]
 ]);
 
+var getModelName = function(model_data) {
+  var modelName = carIDNameMap.get(model_data);
+  if (modelName == undefined)
+    modelName = "Unknown";
+
+  return modelName;
+}
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 // Bluetooth Utilities
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 
-noble.on('stateChange', function (state) {
-  console.log("BTLE State changed: " + state);
-  if (state === 'poweredOn') {
-    console.log("Start scanning");
-    noble.startScanning();
+// noble.on('stateChange', function (state) {
+//   console.log("BTLE State changed: " + state);
+//   if (state === 'poweredOn') {
+//     console.log("Start scanning");
+//     noble.startScanning();
 
-    setTimeout(function () {
-      console.log("Stop scanning");
-      noble.stopScanning();
-    }, 2000);
-  } else {
-    console.log("Stop scanning");
-    noble.stopScanning();
-  }
-});
+//     setTimeout(function () {
+//       console.log("Stop scanning");
+//       noble.stopScanning();
+//     }, 2000);
+//   } else {
+//     console.log("Stop scanning");
+//     noble.stopScanning();
+//   }
+// });
 
-noble.on('discover', function (peripheral) {
-  var manufacturerData = peripheral.advertisement.manufacturerData;
+// noble.on('discover', function (peripheral) {
+//   var manufacturerData = peripheral.advertisement.manufacturerData;
 
-  if (manufacturerData != null) {
-    var model_data = manufacturerData[3]
-    var carName = carIDNameMap.get(model_data);
+//   if (manufacturerData != null) {
+//     var model_data = manufacturerData[3]
+//     var carName = carIDNameMap.get(model_data);
 
-    if (carName != undefined) {
-      var address = peripheral.address;
-      var newCar = new ankiCar(carName, address);
-      newCar.peripheral = peripheral;
-      newCar.connected = false;
+//     if (carName != undefined) {
+//       var address = peripheral.address;
+//       var newCar = new ankiCar(carName, address);
+//       newCar.peripheral = peripheral;
+//       newCar.connected = false;
 
-      // test if this car name already exists in the map
-      var mapKeyName = carName;
-      var index = 1;
-      while (ankiCarMap.get(mapKeyName) != undefined) {
-        // car with this name exists in the map already so create a new key name
-        index++;
-        mapKeyName = carName + ' (' + index + ')';
-      }
+//       // test if this car name already exists in the map
+//       var mapKeyName = carName;
+//       var index = 1;
+//       while (ankiCarMap.get(mapKeyName) != undefined) {
+//         // car with this name exists in the map already so create a new key name
+//         index++;
+//         mapKeyName = carName + ' (' + index + ')';
+//       }
 
-      // add this new named car to the map
-      console.log("Added car: " + mapKeyName + " Type: " + carName + " Address: [" + address + "]");
-      ankiCarMap.set(mapKeyName, newCar);
-    }
-  }
-});
+//       // add this new named car to the map
+//       console.log("Added car: " + mapKeyName + " Type: " + carName + " Address: [" + address + "]");
+//       ankiCarMap.set(mapKeyName, newCar);
+//     }
+//   }
+// });
 
-noble.on('disconnect', function (peripheral) {
-  console.log("BTLE: disconnect called");
-});
+// noble.on('disconnect', function (peripheral) {
+//   console.log("BTLE: disconnect called");
+// });
 
 //////////////////////////////////////////////////////////
 // Rescan
@@ -221,20 +228,19 @@ var turnOnLogging = function (carName) {
 //////////////////////////////////////////////////////////
 // Set Lane Offset - What lane the car should 'start' in.
 //////////////////////////////////////////////////////////
-var setLaneOffset = function (carName, change) {
-  getWriterCharacteristic(carName).then(function (writerCharacteristic) {
-    offsetMessage = Buffer.alloc(6);
-    offsetMessage.writeUInt8(0x05, 0);
-    offsetMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER, 1);
-    offsetMessage.writeFloatLE(parseFloat(change), 2); // Offset value (?? 68,23,-23,68 seem to be lane values 1-4)
+var setLaneOffset = function (writerCharacteristic, change) {
+  offsetMessage = Buffer.alloc(6);
+  offsetMessage.writeUInt8(0x05, 0);
+  offsetMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_SET_OFFSET_FROM_ROAD_CENTER, 1);
+  offsetMessage.writeFloatLE(parseFloat(change), 2); // Offset value (?? 68,23,-23,68 seem to be lane values 1-4)
 
-    console.log("Sending lane offset: " + change);
-    writerCharacteristic.write(offsetMessage, false, function (err) {
-      if (err) {
-        console.log("Error: " + util.inspect(err, false, null));
-      }
-    });
+  console.log("Sending lane offset: " + change);
+  writerCharacteristic.write(offsetMessage, false, function (err) {
+    if (err) {
+      console.log("Error: " + util.inspect(err, false, null));
+    }
   });
+
 }
 
 //////////////////////////////////////////////////////////
@@ -734,6 +740,7 @@ module.exports = function () {
     auditCars: auditCars,
     batteryLevel: batteryLevel,
     trackCountTravel: trackCountTravel,
-    mapTrack: mapTrack
+    mapTrack: mapTrack,
+    getModelName: getModelName
   }
 };
