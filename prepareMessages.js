@@ -6,23 +6,20 @@ module.exports = function() {
     return {
         "doc" : function() {
             var output = "Commands:\n";
-            output = output + "c carName - Connect to car\n";
             output = output + "s [speed] - Set speed\n";
             output = output + "e         - Halt car\n";
             output = output + "b         - Get battery level\n";
             output = output + "u         - Perform a U-turn\n";
-            output = output + "i         - Switch on monitoring for a car\n";
             output = output + "o [offset]- Change lane\n";
             output = output + "p         - Ping\n";
             output = output + "l [r g b] - Lights <r,g,b:0-14>\n"
             output = output + "t [tracks]- Travel tracks\n";
-            output = output + "a         - Audit (list) cars\n";
             output = output + "m         - Perform track mapping\n";
             output = output + "g [file]  - Export track map to file\n";
             return output;    
         },
 
-        "format": function(command) {
+        "invoke": function(command, reader, writer) {
             var cmd;
             var commandArray;
             if (command.indexOf(' ') == -1) {
@@ -43,35 +40,12 @@ module.exports = function() {
                         speed = commandArray[1];
                     }
                 }
-                ankiNodeUtils.setSpeed(gCurrentCar, speed);
+                ankiNodeUtils.setSpeed(writer, speed);
             }
 
             // end/set speed 0
             if (cmd == "e") {
-                ankiNodeUtils.setSpeed(gCurrentCar, 0);
-            }
-
-            // connect to a vehicle
-            if (cmd == 'c') {
-                if (commandArray) {
-                    if (commandArray.length > 1) {
-                        // carName is the remainder of the line, match everything after the command
-                        let regexp = /c\s+(.+)/;
-                        var result = command.match(regexp);
-                        var carName = result[1];
-                        ankiNodeUtils.connectCar(carName).then(function (err) {
-                            if (err) {
-                                console.log("Unable to connect to vehicle.");
-                            } else {
-                                // update the current car
-                                gCurrentCar = carName;    
-                            }                       
-                        })
-                        .catch(function(err) {
-                            console.log('error: ', err);
-                        });
-                    }
-                }
+                ankiNodeUtils.setSpeed(writer, 0);
             }
 
             // change lanes
@@ -84,27 +58,22 @@ module.exports = function() {
                     }
 
                 }
-                ankiNodeUtils.changeLanes(gCurrentCar, offset);
+                ankiNodeUtils.changeLanes(writer, offset);
             }
 
             // get battery level
             if (cmd == 'b') {
-                ankiNodeUtils.batteryLevel(gCurrentCar);
+                ankiNodeUtils.batteryLevel(writer);
             }
 
             // perform a U turn
             if (cmd == 'u') {
-                ankiNodeUtils.uTurn(gCurrentCar);
-            }
-
-            // turn on logging for a car
-            if (cmd == 'i') {
-                ankiNodeUtils.turnOnLogging(gCurrentCar);
+                ankiNodeUtils.uTurn(writer);
             }
 
             // ping car
             if (cmd == 'p') {
-                ankiNodeUtils.ping(gCurrentCar);
+                ankiNodeUtils.ping(writer);
             }
 
             // lights
@@ -114,7 +83,7 @@ module.exports = function() {
                         var r = commandArray[1];
                         var g = commandArray[2];
                         var b = commandArray[3];
-                        ankiNodeUtils.setEngineLight(gCurrentCar, r, g, b);
+                        ankiNodeUtils.setEngineLight(writer, r, g, b);
                     }
                 }
             }
@@ -123,17 +92,13 @@ module.exports = function() {
                 if (commandArray) {
                     if (commandArray.length == 2) {
                         var dist = commandArray[1];
-                        ankiNodeUtils.trackCountTravel(gCurrentCar, dist, 400);
+                        ankiNodeUtils.trackCountTravel(reader, writer, dist, 400);
                     }
                 }
             }
-
-            if (cmd == 'a') {
-                ankiNodeUtils.auditCars();
-            }
             
             if (cmd == 'm') {
-                ankiNodeUtils.mapTrack(gCurrentCar, trackMap);
+                ankiNodeUtils.mapTrack(reader, writer, trackMap);
 
             }
 

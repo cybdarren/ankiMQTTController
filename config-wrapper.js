@@ -16,7 +16,7 @@ module.exports = function () {
 
             properties.parse('./' + propertiesFileName, { path: true }, function (err, cfg) {
                 if (err) {
-                    console.error('Error parsing config file');
+                    console.error('Error parsing the config file');
                     process.exit(0);
                 }
 
@@ -24,6 +24,18 @@ module.exports = function () {
                     console.error('Error parsing the config file');
                     process.exit(0);
                 }
+
+                // convert the MAC ID into a lowercase format without : or -
+                var MACString = cfg.carid;
+                if (MACString.match(/([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})/)) {
+                    MACString = MACString.split(':').join('');
+                    MACString = MACString.split('-').join('');
+                    cfg.carid = MACString;
+                }
+                // convert to lowercase
+                cfg.carid = cfg.carid.toLowerCase();
+                // remove all whitespace
+                cfg.carid = cfg.carid.replace(/\s/g, '');
 
                 if (!cfg.carname) {
                     cfg.carname = "";

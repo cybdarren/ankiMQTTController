@@ -18,15 +18,10 @@ var ankiCarModel;           // car model name derived from the manufacturer data
 var ankiCar;                // car Bluetooth peripheral
 var readCharacteristic;
 var writeCharacteristic;
-             
 var ankiCarLane;
 
-config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
-  // carId is expected to be a MacID used to identify the car
-  // normalize it to lowercase without colons
-  carId = carId.replace(/:/g, '');
-  carId = carId.toLowerCase();
+config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
   if (!carId) {
     console.log('Define carid in a properties file and pass in the name of the file as argv');
@@ -34,10 +29,20 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
   }
   ankiCarLane = startlane;
 
-  noble.startScanning();
-  setTimeout(function () {
-    noble.stopScanning();
-  }, 2000);
+  noble.on('stateChange', function (state) {
+    console.log("BTLE State changed: " + state);
+    if (state === 'poweredOn') {
+      console.log("BTLE device connected");
+      noble.startScanning();
+      setTimeout(function() {
+        console.log("Stop scanning");
+        noble.stopScanning();
+      }, 2000);
+    } else {
+      console.log("Stop scanning");
+      noble.stopScanning();
+    }
+  });
 
   noble.on('discover', function (peripheral) {
     if (peripheral.id === carId) {
@@ -63,12 +68,11 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
             readCharacteristic.subscribe();
 
             // setup a handler for the messages
-            readCharacteristic.on('data', function(data, isNotification) {
-              var msgId = data.readUInt8(1);
-              console.log("Message[0x" + msgId.toString(16) + "][???]: ", data);
+            readCharacteristic.on('data', function (data, isNotification) {
+              receivedMessages.parse(ankiCarName, data);
             });
-            
-          }).catch(function(error) {
+
+          }).catch(function (error) {
             console.log(error);
           });
         }
@@ -101,7 +105,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
               var service = services[0];
 
               service.discoverCharacteristics([], function (error, characteristics) {
-                for(var i = 0; i < characteristics.length; i++) {
+                for (var i = 0; i < characteristics.length; i++) {
                   var characteristic = characteristics[i];
                   if (characteristic.uuid == ANKI_STR_CHR_READ_UUID) {
                     readCharacteristic = characteristic;
@@ -135,18 +139,19 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     return connectPromise;
   }
 
-  // mqttClient.on('error', function(err) {
-  //   console.error('MQTT client error ' + err);
-  //   mqttClient = null;
-  // });
-  // mqttClient.on('close', function() {
-  //   console.log('MQTT client closed');
-  //   mqttClient = null;
-  // });
+  mqttClient.on('error', function(err) {
+    console.error('MQTT client error ' + err);
+    mqttClient = null;
+  });
 
-  // mqttClient.on('message', function(topic, message, packet) {
-  //   var msg = JSON.parse(message.toString());
-  //   //console.log('Message received from Bluemix');
+  mqttClient.on('close', function() {
+    console.log('MQTT client closed');
+    mqttClient = null;
+  });
+
+   mqttClient.on('message', function(topic, message, packet) {
+     var msg = JSON.parse(message.toString());
+     console.log('Message received from mosquitto');
 
   //   if (msg.d.action == '#s') {
   //     var cmd = "s";
@@ -189,27 +194,14 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
   //     var cmd = "lp";
   //     invokeCommand(cmd);
   //   }
-  // }
-  // );
+  });
 });
 
 function invokeCommand(cmd) {
-  var message = prepareMessages.format(cmd);
-  if (message) {
-    console.log("Command: " + cmd, message);
-
-    if (writeCharacteristic) {
-      writeCharacteristic.write(message, false, function (err) {
-        if (!err) {
-          //console.log('Command sent');
-        }
-        else {
-          console.log('Error sending command');
-        }
-      });
-    } else {
-      console.log('Error sending command');
-    }
+  if (readCharacteristic && writeCharacteristic) {
+    prepareMessages.invoke(cmd, readCharacteristic, writeCharacteristic);
+  } else {
+    console.log('Error sending command');
   }
 }
 

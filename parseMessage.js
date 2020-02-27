@@ -54,14 +54,12 @@ module.exports = function () {
         if (data.readUInt8(10) == 0x47) {
           clockwise = true;
         }
-        console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
+        //console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
       }
 
       // Message[0x29][Track Event]:  <Buffer 12 29 00 00 10 bf 1f 49 00 ff ff 00 00 54 01 00 00 37 36>
       // It looks like this event has changed from the SDK.  After much trial/error, I found an interesting bit of info from the message to help me figure out the shape of the track.
       else if (msgId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_TRANSITION_UPDATE) {
-        //console.log("Message[0x"+msgId.toString(16)+"][Track Event]: ",data);
-        //console.log("Size: "+data.length);
         if (data.length < 18) {
           return; // Sometimes we get an odd msg.
         }
@@ -84,7 +82,7 @@ module.exports = function () {
           crossedStartingLine = " (Crossed Starting Line)";
         }
 
-        console.log(carName + " Message[0x" + msgId.toString(16) + "][Track Event]: ", data, "Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
+        //console.log(carName + " Message[0x" + msgId.toString(16) + "] Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_VEHICLE_DELOCALIZED) { 
