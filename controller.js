@@ -34,7 +34,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     if (state === 'poweredOn') {
       console.log("BTLE device connected");
       noble.startScanning();
-      setTimeout(function() {
+      setTimeout(function () {
         console.log("Stop scanning");
         noble.stopScanning();
       }, 2000);
@@ -55,6 +55,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
         ankiCarModel = ankiNodeUtils.getModelName(model_data);
 
         // if no name has been specified for the car use the model name
+        ankiCarName = carName;
         if (carName == "")
           ankiCarName = ankiCarModel;
 
@@ -69,7 +70,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
             // setup a handler for the messages
             readCharacteristic.on('data', function (data, isNotification) {
-              receivedMessages.parse(ankiCarName, data);
+              receivedMessages.parse(ankiCarName, carId, data, mqttClient);
             });
 
           }).catch(function (error) {
@@ -139,61 +140,57 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     return connectPromise;
   }
 
-  mqttClient.on('error', function(err) {
+  mqttClient.on('error', function (err) {
     console.error('MQTT client error ' + err);
     mqttClient = null;
   });
 
-  mqttClient.on('close', function() {
+  mqttClient.on('close', function () {
     console.log('MQTT client closed');
     mqttClient = null;
   });
 
-   mqttClient.on('message', function(topic, message, packet) {
-     var msg = JSON.parse(message.toString());
-     console.log('Message received from mosquitto');
+  mqttClient.on('message', function (topic, message, packet) {
+    var msg = JSON.parse(message.toString());
 
-  //   if (msg.d.action == '#s') {
-  //     var cmd = "s";
-  //     if (msg.d.speed) {
-  //       cmd = cmd + " " + msg.d.speed;
-  //       if (msg.d.accel) {
-  //         cmd = cmd + " " + msg.d.accel;
-  //       }
-  //     }
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#c') {
-  //     var cmd = "c";
-  //     if (msg.d.offset) {
-  //       cmd = cmd + " " + msg.d.offset;
-  //     }
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#q') {
-  //     var cmd = "q";
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#ping') {
-  //     var cmd = "ping";
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#ver') {
-  //     var cmd = "ver";
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#bat') {
-  //     var cmd = "bat";
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#l') {
-  //     var cmd = "l";
-  //     invokeCommand(cmd);
-  //   }
-  //   else if (msg.d.action == '#lp') {
-  //     var cmd = "lp";
-  //     invokeCommand(cmd);
-  //   }
+    if (msg.d.action == '#s') {
+      var cmd = "s";
+      if (msg.d.speed) {
+        cmd = cmd + " " + msg.d.speed;
+      }
+      invokeCommand(cmd, readCharacteristic, writeCharacteristic);
+    }
+    //   else if (msg.d.action == '#c') {
+    //     var cmd = "c";
+    //     if (msg.d.offset) {
+    //       cmd = cmd + " " + msg.d.offset;
+    //     }
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#q') {
+    //     var cmd = "q";
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#ping') {
+    //     var cmd = "ping";
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#ver') {
+    //     var cmd = "ver";
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#bat') {
+    //     var cmd = "bat";
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#l') {
+    //     var cmd = "l";
+    //     invokeCommand(cmd);
+    //   }
+    //   else if (msg.d.action == '#lp') {
+    //     var cmd = "lp";
+    //     invokeCommand(cmd);
+    //   }
   });
 });
 

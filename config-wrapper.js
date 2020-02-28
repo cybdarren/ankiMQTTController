@@ -1,8 +1,26 @@
 const properties = require('properties');
+const mqtt = require('mqtt');
 
-function connectMQTT(deviceId, apiKey, apiToken, mqttHost, mqttPort, carName, carId, startLane, callback) {
+function connectMQTT(deviceId, username, password, mqttHost, mqttPort, carName, carId, startLane, callback) {
+    var mqttClient = mqtt.connect("mqtt://" + mqttHost + ":" + mqttPort, {
+        "keepalive": 30,
+        "username": username,
+        "password": password
+    });
 
-    callback(carName, carId, startLane, null);
+    mqttClient.on('connect', function () {
+        var topicName = 'microchip/anki/car/' + carId + '/cmd/fmt/json';
+        mqttClient.subscribe(topicName, { qos: 0 }, function (err, granted) {
+            if (err) {
+                mqttClient = null;
+            } else {
+                console.log('mqtt client connected');
+            }
+        });
+        console.log("mqtt client connected");
+    });
+
+    callback(carName, carId, startLane, mqttClient);
 }
 
 
@@ -43,7 +61,7 @@ module.exports = function () {
 
                 if (cfg.deviceid) {
                     // connect to the mqtt server
-                    start(cfg.deviceid, cfg.apikey, cfg.authtoken, '127.0.0.1', '1883', 
+                    connectMQTT(cfg.deviceid, cfg.username, cfg.password, cfg.mqttHost, cfg.mqttPort,
                         cfg.carname, cfg.carid, cfg.startlane, callback);
                 } else {
                     // run the car directly without the mqtt server

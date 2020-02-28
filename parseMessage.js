@@ -26,23 +26,56 @@ const ANKI_VEHICLE_MSG_C2V_SDK_MODE = 0x90;
 
 module.exports = function () {
   return {
-    "parse": function (carName, data) {
+    "parse": function (carName, carId, data, mqttClient) {
 
       var msgId = data.readUInt8(1);
+      var date = new Date();
 
       if (msgId == ANKI_VEHICLE_MSG_V2C_PING_RESPONSE) {
-        console.log(carName + " Message[0x" + msgId.toString(16) + "][Ping Response]: ", data);
+        console.log(carName + ": [Ping Response]");
+
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Ping response received',
+              'date' : date
+            }
+          }), function() {
+          });
+        }
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_VERSION_RESPONSE) {
         var version = data.readUInt16LE(2);
-        console.log(carName + " Message[" + msgId.toString(16) + "][Version]: " + version.toString(16));
+        console.log(carName + ": [Version]: " + version.toString(16));
+
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Version received',
+              'date' : date,
+              'version' : version
+            }
+          }), function() {
+          });
+        }
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_BATTERY_LEVEL_RESPONSE) { 
         var level = data.readUInt16LE(2);
         const MAX_BATTERY_LEVEL = 4200 // This is assumed from experience.
         console.log(carName + " Message[0x" + msgId.toString(16) + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
+ 
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Battery Level',
+              'date' : date,
+              'level' : level
+            }
+          }), function() {
+          });
+        }
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_POSITION_UPDATE) { 
@@ -55,6 +88,19 @@ module.exports = function () {
           clockwise = true;
         }
         //console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Localization Position Update received',
+              'date' : date,
+              'offset' : offset,
+              'speed' : speed,
+              'trackId' : trackId,
+              'trackLocation' : trackLocation
+            }
+          }), function() {
+          });
+        }
       }
 
       // Message[0x29][Track Event]:  <Buffer 12 29 00 00 10 bf 1f 49 00 ff ff 00 00 54 01 00 00 37 36>
@@ -83,14 +129,48 @@ module.exports = function () {
         }
 
         //console.log(carName + " Message[0x" + msgId.toString(16) + "] Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Localization Transition Update received',
+              'date' : date,
+              'trackStyle' : trackStyle
+            }
+          }), function() {
+          });
+        }
+      
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_VEHICLE_DELOCALIZED) { 
-        console.log(carName + " Message[0x" + msgId.toString(16) + "][Vehicle Delocalized]: ", data);
+        console.log(carName + ": [Vehicle Delocalized]: ");
+
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Vehicle delocalized received',
+              'date' : date
+            }
+          }), function() {
+          });
+        }
       }
 
       else if (msgId == ANKI_VEHICLE_MSG_V2C_OFFSET_FROM_ROAD_CENTER_UPDATE) { 
+        var offset = data.readFloatLE(2);
+
         console.log(carName + " Message[0x" + msgId.toString(16) + "][Offset From Road Center Update]: ", data);
+
+        if (mqttClient) {
+          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+            'd' : {
+              'description' : 'Offset update received',
+              'date' : date,
+              'offset' : offset
+            }
+          }), function() {
+          });
+        }
       }
 
       else {
