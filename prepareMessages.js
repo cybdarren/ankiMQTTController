@@ -16,6 +16,8 @@ module.exports = function() {
             output = output + "t [tracks]- Travel tracks\n";
             output = output + "m         - Perform track mapping\n";
             output = output + "g [file]  - Export track map to file\n";
+            output = output + "v         - Get software version\n";
+            output = output + "q         - Disconnect and quit\n";
             return output;    
         },
 
@@ -114,6 +116,14 @@ module.exports = function() {
                         });
                     }
                 }
+            }
+
+            if (cmd == 'v') {
+                ankiNodeUtils.version(writer);
+            }
+
+            if (cmd == 'q') {
+                ankiNodeUtils.disconnectCar(writer);
             }
             return;
         }

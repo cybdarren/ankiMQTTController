@@ -153,36 +153,40 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
   mqttClient.on('message', function (topic, message, packet) {
     var msg = JSON.parse(message.toString());
 
-    if (msg.d.action == '#s') {
+    if (msg.d.action == '#speed') {
       var cmd = "s";
       if (msg.d.speed) {
         cmd = cmd + " " + msg.d.speed;
       }
-      invokeCommand(cmd, readCharacteristic, writeCharacteristic);
+      invokeCommand(cmd);
     }
-    //   else if (msg.d.action == '#c') {
-    //     var cmd = "c";
-    //     if (msg.d.offset) {
-    //       cmd = cmd + " " + msg.d.offset;
-    //     }
-    //     invokeCommand(cmd);
-    //   }
-    //   else if (msg.d.action == '#q') {
-    //     var cmd = "q";
-    //     invokeCommand(cmd);
-    //   }
-    //   else if (msg.d.action == '#ping') {
-    //     var cmd = "ping";
-    //     invokeCommand(cmd);
-    //   }
-    //   else if (msg.d.action == '#ver') {
-    //     var cmd = "ver";
-    //     invokeCommand(cmd);
-    //   }
-    //   else if (msg.d.action == '#bat') {
-    //     var cmd = "bat";
-    //     invokeCommand(cmd);
-    //   }
+    else if (msg.d.action == '#lane') {
+      var cmd = "o";
+      if (msg.d.offset) {
+        cmd = cmd + " " + msg.d.offset;
+      }
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#ping') {
+      var cmd = "p";
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#ver') {
+      var cmd = "v";
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#bat') {
+      var cmd = "b";
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#map') {
+      var cmd = 'm';
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#quit') {
+      var cmd = 'q';
+      invokeCommand(cmd);
+    }
     //   else if (msg.d.action == '#l') {
     //     var cmd = "l";
     //     invokeCommand(cmd);
@@ -222,7 +226,7 @@ cli.on('line', function (cmd) {
 process.stdin.resume();
 
 function exitHandler(option, err) {
-  // disconnect from the car
+  // disconnect from the peripheral
   if (ankiCar)
     ankiCar.disconnect();
 }

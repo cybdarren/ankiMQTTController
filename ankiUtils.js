@@ -166,91 +166,21 @@ var setLaneOffset = function (writerCharacteristic, change) {
 //////////////////////////////////////////////////////////
 // Disconnect from a given car
 //////////////////////////////////////////////////////////
-var disconnectCar = function (carName) {
-  console.log("Disconnect from car: " + carName);
-  var ankiCar = null;
+var disconnectCar = function (writerChracteristic) {
+  console.log("Disconnected from car");
 
-  ankiCar = ankiCarMap.get(carName);
-  if (ankiCar == undefined) {
-    // car is not in the list
-    return ("Car already disconnected.");
-  }
+  message = new Buffer.alloc(2);
+  message.writeUInt8(0x01, 0);
+  message.writeUInt8(0x0d, 1)
 
-  // if (peripheral == null) {
-  //   return ("Car already disconnected.");//TBD: Do a rescan and try again...
-  // }
-
-  var peripheral = ankiCar.peripheral;
-  peripheral.disconnect(function (error) {
-    console.log("Disconnected from: " + carName);
-    ankiCar.readerCharacteristic = null;
-    ankiCar.writerCharacteristic = null;
-    ankiCar.connected = false;
+  writerChracteristic.write(message, false, function(err) {
+    if (err) {
+      console.log("Error: " + util.inspect(err, false, null));
+    }
+    process.exit(0);
   });
 }
 
-//////////////////////////////////////////////////////////
-// Connect to a given car
-//////////////////////////////////////////////////////////
-var connectCar = function (carName) {
-  console.log("Making connection to car: " + carName);
-  // Note: The car name can be the actual name or the address.
-  // If only one of a given car 'e.g. Skull' is around, it is easier to use the name.
-  // If two or more cars with the same name are around, it is best to use the address.
-  var ankiCar = null;
-
-  // get car using name..need to check if ID is used
-  var ankiCar = ankiCarMap.get(carName);
-
-  if (ankiCar == undefined) {
-    return ("Car not found");//TBD: Do a rescan and try again...
-  }
-
-  var peripheral = ankiCar.peripheral;
-
-  // This connection is async, so return a promise.
-  var connectPromise = new Promise(
-    function (resolve, reject) {
-      if (ankiCar.connected == true) {
-        // already connected
-        resolve();
-        return;
-      }
-
-      peripheral.connect(function (error) {
-        if (error) {
-          reject("Unable to connect to: " + carName + " err: " + error);
-        } else {
-          console.log("Connected to " + ankiCar.name + " : " + peripheral.uuid);
-          ankiCar.connected = true;
-
-          peripheral.discoverServices([ANKI_STR_SERVICE_UUID], function (error, services) {
-            var service = services[0];
-
-            service.discoverCharacteristics([], function (error, characteristics) {
-              var characteristicIndex = 0;
-
-              for (var i = 0; i < characteristics.length; i++) {
-                var characteristic = characteristics[i];
-                if (characteristic.uuid == ANKI_STR_CHR_READ_UUID) {
-                  ankiCar.readerCharacteristic = characteristic;
-                }
-
-                if (characteristic.uuid == ANKI_STR_CHR_WRITE_UUID) {
-                  ankiCar.writerCharacteristic = characteristic;
-                  turnOnSdkMode(ankiCar.writerCharacteristic);
-                }
-              }
-              resolve();
-              return;
-            });
-          });
-        }
-      });
-    }
-  );
-  return (connectPromise);
-}
 
 // Lights pattern message
 // uint8_t    size;
@@ -360,7 +290,6 @@ var changeLanes = function (writerCharacteristic, change) {
   // anki_vehicle_msg_set_offset_from_road_center
   // anki_vehicle_msg_change_lane
 
-
   var changeMessage = Buffer.alloc(12);
   changeMessage.writeUInt8(11, 0); // ANKI_VEHICLE_MSG_C2V_CHANGE_LANE_SIZE
   changeMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_CHANGE_LANE, 1);
@@ -368,7 +297,7 @@ var changeLanes = function (writerCharacteristic, change) {
   changeMessage.writeInt16LE(1000, 4); // horizontal_accel_mm_per_sec2
   changeMessage.writeFloatLE(parseFloat(change), 6); // offset_from_road_center_mm
 
-  console.log("Sending lane change: " + change);
+  //console.log("Sending lane change: " + change);
   writerCharacteristic.write(changeMessage, false, function (err) {
     if (err) {
       console.log("Error: " + util.inspect(err, false, null));
@@ -399,6 +328,21 @@ var ping = function (writerCharacteristic) {
   var message = Buffer.alloc(2);
   message.writeUInt8(0x01, 0);
   message.writeUInt8(ANKI_VEHICLE_MSG_C2V_PING_REQUEST, 1);
+  writerCharacteristic.write(message, false, function (err) {
+    if (err) {
+      console.log("Error: " + util.inspect(err, false, null));
+    }
+  });
+}
+
+
+//////////////////////////////////////////////////////////
+// Version
+//////////////////////////////////////////////////////////
+var version = function (writerCharacteristic) {
+  var message = Buffer.alloc(2);
+  message.writeUInt8(0x01, 0);
+  message.writeUInt8(ANKI_VEHICLE_MSG_C2V_VERSION_REQUEST, 1);
   writerCharacteristic.write(message, false, function (err) {
     if (err) {
       console.log("Error: " + util.inspect(err, false, null));
@@ -534,6 +478,8 @@ module.exports = function () {
     batteryLevel: batteryLevel,
     trackCountTravel: trackCountTravel,
     mapTrack: mapTrack,
-    getModelName: getModelName
+    getModelName: getModelName,
+    version: version,
+    disconnectCar: disconnectCar
   }
 };
