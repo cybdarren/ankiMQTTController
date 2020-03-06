@@ -35,12 +35,19 @@ module.exports = function () {
         console.log(carName + ": [Ping Response]");
 
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Ping response received',
-              'date' : date
-            }
-          }), function() {
+          // // publish the event
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Ping response received',
+          //     'date' : date
+          //   }
+          // }), function() {
+          // });
+
+          // update the status
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
+            'connected'
+          , function() {
           });
         }
       }
@@ -50,13 +57,16 @@ module.exports = function () {
         console.log(carName + ": [Version]: " + version.toString(16));
 
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Version received',
-              'date' : date,
-              'version' : version
-            }
-          }), function() {
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Version received',
+          //     'date' : date,
+          //     'version' : version
+          //   }
+          // }), function() {
+          // });
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/version', version.toString(16), 
+          function() {
           });
         }
       }
@@ -67,13 +77,17 @@ module.exports = function () {
         console.log(carName + " Message[0x" + msgId.toString(16) + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
  
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Battery Level',
-              'date' : date,
-              'level' : level
-            }
-          }), function() {
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Battery Level',
+          //     'date' : date,
+          //     'level' : level
+          //   }
+          // }), function() {
+          // });
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/battery', 
+            level.toString(),
+          function() {
           });
         }
       }
@@ -89,16 +103,36 @@ module.exports = function () {
         }
         //console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Localization Position Update received',
-              'date' : date,
-              'offset' : offset,
-              'speed' : speed,
-              'trackId' : trackId,
-              'trackLocation' : trackLocation
-            }
-          }), function() {
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Localization Position Update received',
+          //     'date' : date,
+          //     'offset' : offset,
+          //     'speed' : speed,
+          //     'trackId' : trackId,
+          //     'trackLocation' : trackLocation
+          //   }
+          // }), function() {
+          // });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/speed', 
+            speed.toString(), function() {
+          });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/offset', 
+            offset.toString(), function() {
+          });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackId', 
+            trackId.toString(), function() {
+          });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackLoc', 
+            trackLocation.toString(), function() {
+          });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/clockwise', 
+            clockwise.toString(), function() {
           });
         }
       }
@@ -130,14 +164,14 @@ module.exports = function () {
 
         //console.log(carName + " Message[0x" + msgId.toString(16) + "] Left/Right Wheel Distances: " + leftWheelDistance + "/" + rightWheelDistance + " " + trackStyle + crossedStartingLine);
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Localization Transition Update received',
-              'date' : date,
-              'trackStyle' : trackStyle
-            }
-          }), function() {
-          });
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Localization Transition Update received',
+          //     'date' : date,
+          //     'trackStyle' : trackStyle
+          //   }
+          // }), function() {
+          // });
         }
       
       }
@@ -146,12 +180,19 @@ module.exports = function () {
         console.log(carName + ": [Vehicle Delocalized]: ");
 
         if (mqttClient) {
-          mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-            'd' : {
-              'description' : 'Vehicle delocalized received',
-              'date' : date
-            }
-          }), function() {
+          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
+          //   'd' : {
+          //     'description' : 'Vehicle delocalized received',
+          //     'date' : date
+          //   }
+          // }), function() {
+          // });
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackId', 
+            "None", function() {
+          });
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackLoc', 
+            "None", function() {
           });
         }
       }

@@ -123,7 +123,8 @@ module.exports = function() {
             }
 
             if (cmd == 'q') {
-                ankiNodeUtils.disconnectCar(writer);
+                if (writer)
+                    ankiNodeUtils.disconnectCar(writer);
             }
             return;
         }

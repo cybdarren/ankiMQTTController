@@ -5,10 +5,22 @@ function connectMQTT(deviceId, username, password, mqttHost, mqttPort, carName, 
     var mqttClient = mqtt.connect("mqtt://" + mqttHost + ":" + mqttPort, {
         "keepalive": 30,
         "username": username,
-        "password": password
+        "password": password,
+        will: {
+            topic: 'microchip/anki/car/' + carId + '/status/connection',
+            payload: 'disconnected',
+            qos: 1,
+            retain: true
+        }
     });
 
     mqttClient.on('connect', function () {
+        // update the status
+        mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
+        'connected'
+        , function() {
+        });
+
         var topicName = 'microchip/anki/car/' + carId + '/cmd/fmt/json';
         mqttClient.subscribe(topicName, { qos: 0 }, function (err, granted) {
             if (err) {

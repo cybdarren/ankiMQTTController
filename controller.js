@@ -3,6 +3,9 @@ const async = require('async');
 const noble = require('@abandonware/noble');
 const readline = require('readline');
 const mqtt = require('mqtt');
+const events = require('events');
+
+const carEventEmitter = new events.EventEmitter();
 
 const ANKI_STR_SERVICE_UUID = 'be15beef6186407e83810bd89c4d8df4';
 const ANKI_STR_CHR_READ_UUID = 'be15bee06186407e83810bd89c4d8df4';
@@ -16,6 +19,7 @@ const receivedMessages = require('./parseMessage.js')();
 var ankiCarName;            // name of the car from the configuration
 var ankiCarModel;           // car model name derived from the manufacturer data
 var ankiCar;                // car Bluetooth peripheral
+var ankiCarId;              // MACID of the car
 var readCharacteristic;
 var writeCharacteristic;
 var ankiCarLane;
@@ -28,6 +32,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     process.exit(0);
   }
   ankiCarLane = startlane;
+  ankiCarId = carId;
 
   noble.on('stateChange', function (state) {
     console.log("BTLE State changed: " + state);
@@ -73,6 +78,24 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
               receivedMessages.parse(ankiCarName, carId, data, mqttClient);
             });
 
+            // publish the initial car data
+            if (mqttClient) {
+              mqttClient.publish('microchip/anki/car/' + carId + '/status/name',
+                ankiCarName, function () {
+              });     
+              
+              mqttClient.publish('microchip/anki/car/' + carId + '/status/type',
+                ankiCarModel, function () {
+              });     
+
+              mqttClient.publish('microchip/anki/car/' + carId + '/status/id',
+                ankiCarId, function () {
+              });                 
+
+              mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
+                'connected', function () {
+              });               
+            }
           }).catch(function (error) {
             console.log(error);
           });
@@ -81,10 +104,31 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     }
   });
 
+  // we have a special handler for the speed setter which allows speed commands
+  // from the cli to be handled here to allow mqtt messages to be posted
+  carEventEmitter.on('stop', function(err) {
+    if (mqttClient) {
+      mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
+        '0', function () {
+      });      
+    }
+  });
+
   function setUp(name, lane, peripheral) {
     // register a disconnect handler
     peripheral.on('disconnect', function () {
       console.log('Car has been disconnected: ' + name);
+
+      if (mqttClient) {
+        mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
+          'disconnected', function () {
+        });   
+
+        mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
+          '0', function () {
+        });      
+      }
+
       process.exit(0);
     });
 
@@ -155,10 +199,17 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
     if (msg.d.action == '#speed') {
       var cmd = "s";
-      if (msg.d.speed) {
-        cmd = cmd + " " + msg.d.speed;
-      }
+      // speed commands from mqtt are assumed to always have a speed field
+      cmd = cmd + " " + msg.d.speed;
+
       invokeCommand(cmd);
+
+      // special case for speed 0 as feedback is not always returned from the car
+      if (msg.d.speed == 0) {
+        mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
+          '0', function () {
+        });
+      }
     }
     else if (msg.d.action == '#lane') {
       var cmd = "o";
@@ -201,7 +252,14 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 function invokeCommand(cmd) {
   if (readCharacteristic && writeCharacteristic) {
     prepareMessages.invoke(cmd, readCharacteristic, writeCharacteristic);
-  } else {
+
+    // special case for end/stopping the car
+    if (cmd == 'e') {
+      carEventEmitter.emit('stop');
+    }
+  } else if (cmd == 'q') {
+    process.exit(0);
+  } else{
     console.log('Error sending command');
   }
 }
