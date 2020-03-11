@@ -102,7 +102,7 @@ var addTrackToMap = function (trackId, clockwise) {
       return;
     }
     startFound = true;
-    trackShape[mapY][mapX] = 1;
+    trackShape[mapY][mapX] = TRACK_START_FINISH;
     mapDir = 1; // East
     mapX += 1;
     updateTrackShape();
@@ -129,10 +129,11 @@ var addTrackToMap = function (trackId, clockwise) {
         break;
       case 2:
         newMapTile = TRACK_STRAIGHT_VERT;
-        mapX += 1;
+        mapY += 1;
         break;
       case 1:
         newMapTile = TRACK_STRAIGHT_HORIZ;
+        mapX += 1;
         break;
       case 3:
         newMapTile = TRACK_STRAIGHT_HORIZ;
@@ -219,7 +220,7 @@ var addTrackToMap = function (trackId, clockwise) {
     // crossover so don't change the existing piece
   } else {
     // map already has a piece at this location 
-    // bit shift the upper tile and place on the map
+    // bit shift the tile and place on the map
     newMapTile = newMapTile << 4;
     newMapTile = newMapTile | currentMapTile;
     trackShape[currentMapY][currentMapX] = newMapTile;
@@ -268,7 +269,7 @@ const mapTrackImages = [
   0x75
 ];
 
-var getTrackMap = function (size) {
+var getTrackMapImage = function (size) {
   var Canvas = require('canvas');
   var Image = Canvas.Image;
 
@@ -310,6 +311,6 @@ module.exports = function () {
     resetTrackMap: resetTrackMap,
     getTrackMapData: getTrackMapData,
     setTrackMapData: setTrackMapData,
-    getTrackMap: getTrackMap
+    getTrackMapImage: getTrackMapImage
   }
 };

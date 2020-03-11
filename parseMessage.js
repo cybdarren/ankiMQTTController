@@ -1,6 +1,6 @@
-var trackMap = require('./trackMap.js')();
+//var trackMap = require('./trackMap.js')();
 
-var trackTransition = false;
+//var trackTransition = false;
 
 const ANKI_VEHICLE_MSG_C2V_DISCONNECT = 0x0d;
 const ANKI_VEHICLE_MSG_C2V_PING_REQUEST = 0x16;
@@ -115,25 +115,21 @@ module.exports = function () {
           // }), function() {
           // });
 
+          var locObj = new Object();
+          locObj.speed = speed;
+          locObj.offset = offset;
+          locObj.trackId = trackId;
+          locObj.trackLoc = trackLocation;
+          locObj.clockwise = clockwise;
+
           mqttClient.publish('microchip/anki/car/' + carId + '/status/speed', 
             speed.toString(), function() {
           });
 
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/offset', 
-            offset.toString(), function() {
+          mqttClient.publish('microchip/anki/car/' + carId + '/location',
+            JSON.stringify(locObj), function() {
           });
 
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackId', 
-            trackId.toString(), function() {
-          });
-
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackLoc', 
-            trackLocation.toString(), function() {
-          });
-
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/clockwise', 
-            clockwise.toString(), function() {
-          });
         }
       }
 
@@ -187,12 +183,19 @@ module.exports = function () {
           //   }
           // }), function() {
           // });
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackId', 
-            "None", function() {
+          var locObj = new Object();
+          locObj.speed = 0;
+          locObj.offset = 0;
+          locObj.trackId = 0;
+          locObj.trackLoc = 0;
+          locObj.clockwise = true;
+
+          mqttClient.publish('microchip/anki/car/' + carId + '/status/speed', 
+            '0', function() {
           });
 
-          mqttClient.publish('microchip/anki/car/' + carId + '/status/trackLoc', 
-            "None", function() {
+          mqttClient.publish('microchip/anki/car/' + carId + '/location',
+            JSON.stringify(locObj), function() {
           });
         }
       }

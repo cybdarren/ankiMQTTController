@@ -1,7 +1,7 @@
 const async = require('async');
 const util = require('util');
-const noble = require('@abandonware/noble');
-var messageParse = require('./parseMessage.js')();
+//const noble = require('@abandonware/noble');
+//var messageParse = require('./parseMessage.js')();
 
 
 const MAX_BATTERY_LEVEL = 4200;

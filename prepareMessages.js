@@ -18,6 +18,7 @@ module.exports = function() {
             output = output + "g [file]  - Export track map to file\n";
             output = output + "v         - Get software version\n";
             output = output + "q         - Disconnect and quit\n";
+            output = output + "r         - Rescan and discover devices\n";
             return output;    
         },
 
@@ -108,7 +109,7 @@ module.exports = function() {
                 if (command) {
                     if (commandArray.length == 2) {
                         var fileName = __dirname + '/' + commandArray[1];
-                        var gMap = trackMap.getTrackMap("small");
+                        var gMap = trackMap.getTrackMapImage("small");
                         var buf = gMap.toBuffer();
                         fs.writeFile(fileName, buf, function(err) {
                             if (err) throw err;
@@ -126,7 +127,20 @@ module.exports = function() {
                 if (writer)
                     ankiNodeUtils.disconnectCar(writer);
             }
+
+            if (cmd == 'r') {
+                // handled in controller.js
+            }
+            
             return;
+        },
+
+        "getMap": function() {
+            if (trackMap.isTrackMapDone) {
+                return trackMap.getTrackMapData();
+            } else {
+                return null;
+            }
         }
     };
 };

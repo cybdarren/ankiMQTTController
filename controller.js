@@ -1,8 +1,8 @@
 const config = require('./config-wrapper.js')();
-const async = require('async');
+//const async = require('async');
 const noble = require('@abandonware/noble');
 const readline = require('readline');
-const mqtt = require('mqtt');
+//const mqtt = require('mqtt');
 const events = require('events');
 
 const carEventEmitter = new events.EventEmitter();
@@ -108,9 +108,11 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
   // from the cli to be handled here to allow mqtt messages to be posted
   carEventEmitter.on('stop', function(err) {
     if (mqttClient) {
-      mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
-        '0', function () {
-      });      
+      setTimeout(function () {
+        mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
+          '0', function () {
+        });  
+      }, 1200);
     }
   });
 
@@ -123,13 +125,11 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
         mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
           'disconnected', function () {
         });   
-
-        mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
-          '0', function () {
-        });      
+   
+        carEventEmitter.emit('stop');
       }
 
-      process.exit(0);
+      //process.exit(0);
     });
 
     var connectPromise = new Promise(
@@ -184,10 +184,10 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     return connectPromise;
   }
 
-  mqttClient.on('error', function (err) {
-    console.error('MQTT client error ' + err);
-    mqttClient = null;
-  });
+  // mqttClient.on('error', function (err) {
+  //   console.error('MQTT client error ' + err);
+  //   mqttClient = null;
+  // });
 
   mqttClient.on('close', function () {
     console.log('MQTT client closed');
@@ -196,7 +196,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
   mqttClient.on('message', function (topic, message, packet) {
     var msg = JSON.parse(message.toString());
-
+    console.log("MSG: ", msg);
     if (msg.d.action == '#speed') {
       var cmd = "s";
       // speed commands from mqtt are assumed to always have a speed field
@@ -206,9 +206,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
       // special case for speed 0 as feedback is not always returned from the car
       if (msg.d.speed == 0) {
-        mqttClient.publish('microchip/anki/car/' + carId + '/status/speed',
-          '0', function () {
-        });
+        carEventEmitter.emit('stop');
       }
     }
     else if (msg.d.action == '#lane') {
@@ -237,6 +235,17 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     else if (msg.d.action == '#quit') {
       var cmd = 'q';
       invokeCommand(cmd);
+    } 
+    else if (msg.d.action == '#rescan') {
+      startRescan();
+    }
+    else if (msg.d.action == '#getmap') {
+      // get the most recent map data
+      var mapData = prepareMessages.getMap();
+      if (mapData != null) {
+        mqttClient.publish('microchip/anki/track', JSON.stringify(mapData), function () {
+        });
+      }
     }
     //   else if (msg.d.action == '#l') {
     //     var cmd = "l";
@@ -249,17 +258,35 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
   });
 });
 
-function invokeCommand(cmd) {
-  if (readCharacteristic && writeCharacteristic) {
-    prepareMessages.invoke(cmd, readCharacteristic, writeCharacteristic);
+function startRescan() {
+  console.log("Starting rescan for cars");
+  // perform a rescan/discovery process for the selected device
+  if (noble.state === 'poweredOn') {
+    noble.startScanning();
+    // discovery event will be triggered in the main handler
+    setTimeout(function () {
+      console.log("Stop scanning");
+      noble.stopScanning();
+    }, 2000);
+  } 
+}
 
-    // special case for end/stopping the car
+function invokeCommand(cmd) {
+  // handle some special cases for rescan and quit
+  if (cmd == 'r') {
+    // rescan for our selected device
+    startRescan();
+  } else if (cmd == 'q') {
+    // quit the application
+    process.exit(0);
+  } else if (readCharacteristic && writeCharacteristic) {
+    prepareMessages.invoke(cmd, readCharacteristic, writeCharacteristic);
+    // special case for end/stopping the car to ensure speed 0 is propagated 
+    // via mqtt
     if (cmd == 'e') {
       carEventEmitter.emit('stop');
     }
-  } else if (cmd == 'q') {
-    process.exit(0);
-  } else{
+   } else {
     console.log('Error sending command');
   }
 }
