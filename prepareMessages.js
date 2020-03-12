@@ -16,6 +16,7 @@ module.exports = function() {
             output = output + "t [tracks]- Travel tracks\n";
             output = output + "m         - Perform track mapping\n";
             output = output + "g [file]  - Export track map to file\n";
+            output = output + "gn        - Print map number array\n";
             output = output + "v         - Get software version\n";
             output = output + "q         - Disconnect and quit\n";
             output = output + "r         - Rescan and discover devices\n";
@@ -119,6 +120,11 @@ module.exports = function() {
                 }
             }
 
+            if (cmd == 'gn') {
+                var mapData = trackMap.getTrackMapImageNames();
+                console.log("Track map image: " + mapData);
+            }
+
             if (cmd == 'v') {
                 ankiNodeUtils.version(writer);
             }
@@ -137,7 +143,7 @@ module.exports = function() {
 
         "getMap": function() {
             if (trackMap.isTrackMapDone) {
-                return trackMap.getTrackMapData();
+                return trackMap.getTrackMapImageNames();
             } else {
                 return null;
             }

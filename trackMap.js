@@ -216,7 +216,7 @@ var addTrackToMap = function (trackId, clockwise) {
   if (currentMapTile == TRACK_EMPTY) {
     // empty map location currently so just store the contents
     trackShape[currentMapY][currentMapX] = newMapTile;
-  } else if (currentMapTile == 8) {
+  } else if (currentMapTile == TRACK_CROSSOVER) {
     // crossover so don't change the existing piece
   } else {
     // map already has a piece at this location 
@@ -269,6 +269,28 @@ const mapTrackImages = [
   0x75
 ];
 
+// return an array contianing the names of the images
+var getTrackMapImageNames = function() {
+  // copy the data to match the dimensions, data will be replaced
+  var trackShapeImageIndexes = JSON.parse(JSON.stringify(trackShape));
+
+  console.log("Before: " + trackShape);
+  var trackImageIndex = 0;
+  var trackImage = 0;
+  for (var x = 0; x < trackShape[0].length; x++) {
+    for (var y = 0; y < trackShape.length; y++) {
+      // get the appropriate index for a given shape
+      trackImageIndex = trackShape[y][x];
+      trackImage = mapTrackImages.indexOf(trackImageIndex);
+      if (trackImage == -1) trackImage = 0;
+      trackShapeImageIndexes[y][x] = trackImage;
+    }
+  }
+  console.log("After: " + trackShape);
+  return trackShapeImageIndexes;
+}
+
+// return a single convas containing a compound image
 var getTrackMapImage = function (size) {
   var Canvas = require('canvas');
   var Image = Canvas.Image;
@@ -311,6 +333,7 @@ module.exports = function () {
     resetTrackMap: resetTrackMap,
     getTrackMapData: getTrackMapData,
     setTrackMapData: setTrackMapData,
+    getTrackMapImageNames: getTrackMapImageNames,
     getTrackMapImage: getTrackMapImage
   }
 };

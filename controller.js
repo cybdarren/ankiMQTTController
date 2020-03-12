@@ -312,6 +312,10 @@ process.stdin.resume();
 
 function exitHandler(option, err) {
   // disconnect from the peripheral
+  if (err) {
+    console.log(err);
+  }
+
   if (ankiCar)
     ankiCar.disconnect();
 }
