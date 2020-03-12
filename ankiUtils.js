@@ -71,7 +71,7 @@ var turnOnSdkMode = function (writerCharacteristic) {
 }
 
 //////////////////////////////////////////////////////////
-// Set Lane Offset - What lane the car should 'start' in.
+// Set Lane Offset - What lane the car thinks it is in.
 //////////////////////////////////////////////////////////
 var setLaneOffset = function (writerCharacteristic, change) {
   offsetMessage = Buffer.alloc(6);
@@ -215,11 +215,13 @@ var changeLanes = function (writerCharacteristic, change) {
   // anki_vehicle_msg_set_offset_from_road_center
   // anki_vehicle_msg_change_lane
 
+  setLaneOffset(writerCharacteristic, 0);
+
   var changeMessage = Buffer.alloc(12);
   changeMessage.writeUInt8(11, 0); // ANKI_VEHICLE_MSG_C2V_CHANGE_LANE_SIZE
   changeMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_CHANGE_LANE, 1);
   changeMessage.writeInt16LE(250, 2); // horizontal_speed_mm_per_sec
-  changeMessage.writeInt16LE(1000, 4); // horizontal_accel_mm_per_sec2
+  changeMessage.writeInt16LE(500, 4); // horizontal_accel_mm_per_sec2
   changeMessage.writeFloatLE(parseFloat(change), 6); // offset_from_road_center_mm
 
   //console.log("Sending lane change: " + change);
