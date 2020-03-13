@@ -7,6 +7,7 @@ module.exports = function() {
         "doc" : function() {
             var output = "Commands:\n";
             output = output + "s [speed] - Set speed\n";
+            output = output + "sl        - Orientate and move to start line\n";
             output = output + "e         - Halt car\n";
             output = output + "b         - Get battery level\n";
             output = output + "u         - Perform a U-turn\n";
@@ -47,6 +48,12 @@ module.exports = function() {
                 ankiNodeUtils.setSpeed(writer, speed);
             }
 
+            // orientate the correct way and move to the start line then stop
+            if (cmd == "sl") {
+                var speed = 500;
+                ankiNodeUtils.onYourMarks(reader, writer, speed);
+            }
+
             // end/set speed 0
             if (cmd == "e") {
                 ankiNodeUtils.setSpeed(writer, 0);
@@ -72,7 +79,8 @@ module.exports = function() {
 
             // perform a U turn
             if (cmd == 'u') {
-                ankiNodeUtils.uTurn(writer);
+                // 0 = immediately, 1 = next track junction
+                ankiNodeUtils.uTurn(writer, 0);
             }
 
             // ping car

@@ -24,9 +24,29 @@ const ANKI_VEHICLE_MSG_C2V_LIGHTS_PATTERN = 0x33;
 const ANKI_VEHICLE_MSG_C2V_SET_CONFIG_PARAMS = 0x45;
 const ANKI_VEHICLE_MSG_C2V_SDK_MODE = 0x90;
 
+// mapping of the start finish straight location ids to offsets
+const sfLocationToLaneOffset = [
+  -72.5, -72.5,           // locationID 0, 1
+  -63.4, -63.4,           // locationID 2, 3
+  -54.4, -54.4,           // locationID 4, 5
+  -45.3, -45.3,           // locationID 6, 7
+  -36.3, -36.3,           // locationID 8, 9
+  -27.2, -27.2,           // locationID 10, 11
+  -18.1, -18.1,           // locationID 12, 13
+   -9.0,  -9.0,           // locationID 14, 15
+    0.0,   0.0,           // locationID 16, 17
+    9.0,   9.0,           // locationID 18, 19
+   18.1,  18.1,           // locationID 20, 21
+   27.2,  27.2,           // locationID 22, 23
+   36.3,  36.3,           // locationID 24, 25
+   45.3,  45.3,           // locationID 26, 27
+   54.4,  54.4,           // locationID 28, 29
+   63.4,  63.4,           // locationID 30, 31 
+];
+
 module.exports = function () {
   return {
-    "parse": function (carName, carId, data, mqttClient) {
+    "parse": function (carName, carId, ankiCarLane, data, mqttClient) {
 
       var msgId = data.readUInt8(1);
       var date = new Date();
@@ -35,16 +55,6 @@ module.exports = function () {
         console.log(carName + ": [Ping Response]");
 
         if (mqttClient) {
-          // // publish the event
-          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-          //   'd' : {
-          //     'description' : 'Ping response received',
-          //     'date' : date
-          //   }
-          // }), function() {
-          // });
-
-          // update the status
           mqttClient.publish('microchip/anki/car/' + carId + '/status/connection',
             'connected'
           , function() {
@@ -57,14 +67,6 @@ module.exports = function () {
         console.log(carName + ": [Version]: " + version.toString(16));
 
         if (mqttClient) {
-          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-          //   'd' : {
-          //     'description' : 'Version received',
-          //     'date' : date,
-          //     'version' : version
-          //   }
-          // }), function() {
-          // });
           mqttClient.publish('microchip/anki/car/' + carId + '/status/version', version.toString(16), 
           function() {
           });
@@ -77,14 +79,6 @@ module.exports = function () {
         console.log(carName + " Message[0x" + msgId.toString(16) + "][Battery Level]: " + Math.floor((level / MAX_BATTERY_LEVEL) * 100) + "%");
  
         if (mqttClient) {
-          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-          //   'd' : {
-          //     'description' : 'Battery Level',
-          //     'date' : date,
-          //     'level' : level
-          //   }
-          // }), function() {
-          // });
           mqttClient.publish('microchip/anki/car/' + carId + '/status/battery', 
             level.toString(),
           function() {
@@ -101,20 +95,15 @@ module.exports = function () {
         if (data.readUInt8(10) == 0x47) {
           clockwise = true;
         }
+
+        // if this is the start/finish straight then update the vehicle offset
+        if (trackId == 34) {
+          var laneOffset = sfLocationToLaneOffset[trackLocation];
+          console.log("Lane: " + trackLocation + "  Track offset: " + laneOffset);
+        }
+
         //console.log(carName + " TrackId: " + trackId + " TrackLoc: " + trackLocation + " CW: " + clockwise);
         if (mqttClient) {
-          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-          //   'd' : {
-          //     'description' : 'Localization Position Update received',
-          //     'date' : date,
-          //     'offset' : offset,
-          //     'speed' : speed,
-          //     'trackId' : trackId,
-          //     'trackLocation' : trackLocation
-          //   }
-          // }), function() {
-          // });
-
           var locObj = new Object();
           locObj.speed = speed;
           locObj.offset = offset;
@@ -176,13 +165,6 @@ module.exports = function () {
         console.log(carName + ": [Vehicle Delocalized]: ");
 
         if (mqttClient) {
-          // mqttClient.publish('microchip/anki/car/' + carId + '/evt/fmt/json', JSON.stringify({
-          //   'd' : {
-          //     'description' : 'Vehicle delocalized received',
-          //     'date' : date
-          //   }
-          // }), function() {
-          // });
           var locObj = new Object();
           locObj.speed = 0;
           locObj.offset = 0;

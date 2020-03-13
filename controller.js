@@ -22,6 +22,11 @@ var ankiCar;                // car Bluetooth peripheral
 var ankiCarId;              // MACID of the car
 var readCharacteristic;
 var writeCharacteristic;
+
+// the ankiCarLane is an estimate based upon the configuration file. Since we cannot be sure
+// where a user places the car this value will be updated each time the car passes the start/finish 
+// track by looking at the trackID and trackLocation values. The value stored is an absoute mm value
+// from -68 to +68
 var ankiCarLane;
 
 
@@ -31,8 +36,17 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     console.log('Define carid in a properties file and pass in the name of the file as argv');
     process.exit(0);
   }
-  ankiCarLane = startlane;
   ankiCarId = carId;
+
+  // define the lane the car is in
+  var initialOffset = 0.0;
+  if (startlane) {
+    if (startlane == '1') initialOffset = 68.0;
+    if (startlane == '2') initialOffset = 23.0;
+    if (startlane == '3') initialOffset = -23.0;
+    if (startlane == '4') initialOffset = -68.0;
+  }
+  ankiCarLane = initialOffset;
 
   noble.on('stateChange', function (state) {
     console.log("BTLE State changed: " + state);
@@ -75,7 +89,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
 
             // setup a handler for the messages
             readCharacteristic.on('data', function (data, isNotification) {
-              receivedMessages.parse(ankiCarName, carId, data, mqttClient);
+              receivedMessages.parse(ankiCarName, carId, ankiCarLane, data, mqttClient);
             });
 
             // publish the initial car data
@@ -162,15 +176,7 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
                     // enable SDK mode for this car
                     ankiNodeUtils.turnOnSdkMode(writeCharacteristic);
 
-                    // define the lane the car is in
-                    var initialOffset = 0.0;
-                    if (lane) {
-                      if (lane == '1') initialOffset = 68.0;
-                      if (lane == '2') initialOffset = 23.0;
-                      if (lane == '3') initialOffset = -23.0;
-                      if (lane == '4') initialOffset = -68.0;
-                    }
-                    ankiNodeUtils.setLaneOffset(writeCharacteristic, initialOffset);
+                    ankiNodeUtils.setLaneOffset(writeCharacteristic, lane);
                   }
                 }
                 resolve(peripheral);
@@ -214,6 +220,10 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
       if (msg.d.offset) {
         cmd = cmd + " " + msg.d.offset;
       }
+      invokeCommand(cmd);
+    }
+    else if (msg.d.action == '#startline') {
+      var cmd = "sl";
       invokeCommand(cmd);
     }
     else if (msg.d.action == '#ping') {

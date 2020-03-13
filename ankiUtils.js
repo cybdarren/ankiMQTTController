@@ -91,14 +91,14 @@ var setLaneOffset = function (writerCharacteristic, change) {
 //////////////////////////////////////////////////////////
 // Disconnect from a given car
 //////////////////////////////////////////////////////////
-var disconnectCar = function (writerChracteristic) {
+var disconnectCar = function (writerCharacteristic) {
   console.log("Disconnected from car");
 
   message = new Buffer.alloc(2);
   message.writeUInt8(0x01, 0);
   message.writeUInt8(0x0d, 1)
 
-  writerChracteristic.write(message, false, function(err) {
+  writerCharacteristic.write(message, false, function(err) {
     if (err) {
       console.log("Error: " + util.inspect(err, false, null));
     }
@@ -175,12 +175,20 @@ var setEngineLight = function (writerCharacteristic, red, green, blue) {
 //////////////////////////////////////////////////////////
 // Make the car do a U-Turn
 //////////////////////////////////////////////////////////
-var uTurn = function (writerCharacteristic) {
+const ANKI_VEHICLE_TURN_NONE        = 0;
+const ANKI_VEHICLE_TURN_LEFT        = 1;
+const ANKI_VEHICLE_TURN_RIGHT       = 2;
+const ANKI_VEHICLE_TURN_UTURN       = 3;
+const ANKI_VEHICLE_TURN_UTURN_JUMP  = 4;
+const ANKI_VEHICLE_TURN_TRIGGER_IMMEDIATE    = 0; // Run immediately
+const ANKI_VEHICLE_TURN_TRIGGER_INTERSECTION = 1; // Run at the next intersection
+
+var uTurn = function (writerCharacteristic, timing) {
   var uTurnMessage = Buffer.alloc(4);
   uTurnMessage.writeUInt8(0x03, 0);
   uTurnMessage.writeUInt8(ANKI_VEHICLE_MSG_C2V_TURN, 1);
-  uTurnMessage.writeUInt8(0x03, 2); // u turn
-  uTurnMessage.writeUInt8(0x00, 3); // turn 0 = immediately, 1 = at next track junction 
+  uTurnMessage.writeUInt8(ANKI_VEHICLE_TURN_UTURN_JUMP, 2); // u turn
+  uTurnMessage.writeUInt8(timing, 3); // turn 0 = immediately, 1 = at next track junction 
 
   console.log("U-Turn");
   writerCharacteristic.write(uTurnMessage, false, function (err) {
@@ -335,6 +343,9 @@ var trackCountTravel = function (readerCharacteristic, writerCharacteristic, tra
   );
 }
 
+//////////////////////////////////////////////////////////
+// Map the track
+//////////////////////////////////////////////////////////
 var mapTrack = function (readerCharacteristic, writerCharacteristic, trackMap) {
   trackMap.resetTrackMap();
 
@@ -393,12 +404,77 @@ var mapTrack = function (readerCharacteristic, writerCharacteristic, trackMap) {
   );
 }
 
+//////////////////////////////////////////////////////////
+// onYourMarks, move to the start line, orientate in 
+// CW=false direction (direction of the arrows on the track)
+// then stop
+//////////////////////////////////////////////////////////
+var onYourMarks = function (readerCharacteristic, writerCharacteristic, speed) {
+  var trackCount = 0;
+
+  async.series(
+    [
+      function (callback) {
+        // start the reader
+        console.log("Locating start/finish straight...");
+        trackCount = 0;
+        callback(null, 0);
+      },
+
+      function (callback) { // Write the request to start the car travelling
+        console.log("Starting car...");
+        trackCount = 0;
+        setSpeed(writerCharacteristic, speed);
+        callback(null, 0);
+      },
+
+      function (callback) {
+        // local callback to handle data from the car
+        function processData(data, isNotification) {
+          var messageId = data.readUInt8(1);
+          if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_TRANSITION_UPDATE) {
+            trackCount = trackCount + 1;
+          } else if (messageId == ANKI_VEHICLE_MSG_V2C_LOCALIZATION_POSITION_UPDATE) {
+            var trackLocation = data.readUInt8(2);
+            var trackId = data.readUInt8(3);
+            var offset = data.readFloatLE(4);
+            var clockwise = false;
+            if (data.readUInt8(10) == 0x47) {
+              clockwise = true;
+            }
+
+            if (trackId == 34) {
+              // found the finish straight
+              console.log("Found finish straight");
+              if (clockwise == false) {
+                readerCharacteristic.removeListener('data', processData);
+                callback(null, trackLocation);
+              } else {
+                // going in the wrong direction so turn around at the next track junction
+                uTurn(writerCharacteristic, ANKI_VEHICLE_TURN_TRIGGER_INTERSECTION);
+              }
+            }
+          }
+        }
+        readerCharacteristic.on('data', processData);
+      }
+    ],
+
+    function (err, results) {
+      console.log("Final call.  Stop car: " + results);
+      trackCount = 0;
+      setSpeed(writerCharacteristic, 0);
+    }
+  );
+}
+
 module.exports = function () {
   return {
     turnOnSdkMode: turnOnSdkMode,
     setLaneOffset: setLaneOffset,
     setEngineLight: setEngineLight,
     setSpeed: setSpeed,
+    onYourMarks: onYourMarks,
     changeLanes: changeLanes,
     uTurn: uTurn,
     ping: ping,
