@@ -1,8 +1,11 @@
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const async = require('async');
 const util = require('util');
-//const noble = require('@abandonware/noble');
-//var messageParse = require('./parseMessage.js')();
-
 
 const MAX_BATTERY_LEVEL = 4200;
 const ANKI_STR_SERVICE_UUID = 'be15beef6186407e83810bd89c4d8df4';

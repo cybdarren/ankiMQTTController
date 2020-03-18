@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 var ankiNodeUtils = require('./ankiUtils.js')();
 var trackMap = require('./trackMap.js')();
 const fs = require('fs');

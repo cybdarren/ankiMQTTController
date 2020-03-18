@@ -1,6 +1,8 @@
-//var trackMap = require('./trackMap.js')();
-
-//var trackTransition = false;
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 const ANKI_VEHICLE_MSG_C2V_DISCONNECT = 0x0d;
 const ANKI_VEHICLE_MSG_C2V_PING_REQUEST = 0x16;

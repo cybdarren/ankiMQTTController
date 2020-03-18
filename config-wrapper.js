@@ -1,4 +1,10 @@
-const properties = require('properties');
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+ const properties = require('properties');
 const mqtt = require('mqtt');
 
 function connectMQTT(deviceId, username, password, mqttHost, mqttPort, carName, carId, startLane, callback) {

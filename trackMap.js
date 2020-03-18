@@ -1,5 +1,10 @@
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-// create two-dimensional array to hold the track
+ // create two-dimensional array to hold the track
 var trackShape = new Array([[],[]])
 
 var startFound = false;

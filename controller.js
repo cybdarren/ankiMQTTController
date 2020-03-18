@@ -1,8 +1,12 @@
+/*
+ * Copyright (C) 2020 Microchip Technology Inc.  All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 const config = require('./config-wrapper.js')();
-//const async = require('async');
 const noble = require('@abandonware/noble');
 const readline = require('readline');
-//const mqtt = require('mqtt');
 const events = require('events');
 
 const carEventEmitter = new events.EventEmitter();
