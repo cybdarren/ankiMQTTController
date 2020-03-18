@@ -150,11 +150,11 @@ module.exports = function() {
         },
 
         "getMap": function() {
-            if (trackMap.isTrackMapDone) {
-                return trackMap.getTrackMapImageNames();
-            } else {
-                return null;
-            }
+            return trackMap.getTrackMapImageNames();
+        },
+
+        "isMapDone": function() {
+            return trackMap.isTrackMapDone();
         }
     };
 };

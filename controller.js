@@ -241,6 +241,27 @@ config.read(process.argv[2], function (carName, carId, startlane, mqttClient) {
     else if (msg.d.action == '#map') {
       var cmd = 'm';
       invokeCommand(cmd);
+
+      var previousMap = prepareMessages.getMap();
+
+      // update the map periodically
+      var mapIntervalTimer = setInterval(function() {
+        // output the current map
+        
+        var mapData = prepareMessages.getMap();
+        if (mapData != null) {
+          if (mapData != previousMap) {
+            mqttClient.publish('microchip/anki/track', JSON.stringify(mapData), function() {
+            });
+            previousMap = mapData;
+          }
+        }
+
+        // if the map is complete then stop the timed callback
+        if (prepareMessages.isMapDone()) {
+          clearInterval(mapIntervalTimer);
+        }
+      }, 500);
     }
     else if (msg.d.action == '#quit') {
       var cmd = 'q';

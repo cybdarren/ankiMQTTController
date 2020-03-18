@@ -1,7 +1,5 @@
 
 // create two-dimensional array to hold the track
-//var trackShape = new Array(1);
-//trackShape[0] = new Array(1);
 var trackShape = new Array([[],[]])
 
 var startFound = false;
@@ -290,7 +288,7 @@ var getTrackMapImageNames = function() {
   return trackShapeImageIndexes;
 }
 
-// return a single convas containing a compound image
+// return a single canvas containing a compound image
 var getTrackMapImage = function (size) {
   var Canvas = require('canvas');
   var Image = Canvas.Image;
