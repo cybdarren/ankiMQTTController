@@ -1,6 +1,8 @@
+![Guardian Anki car](images/car_pics/Guardian.png)
+
 # ankiMQTTController
 
-
+This project is designed as a gateway controller between either a linux console terminal, Anki Overdrive Bluetooth cars and a MQTT broker. It will run as a background process on a Linux host or can be controlled using the CLI.
 
 ### Configuring the Bluetooth adapter for non root (sudo access)
 By default access to a Bluetooht adapter is restricted to root/sudo access. This prevents a nodejs based application from accessing the adapter. The error messages are usually quite vague or you get none at all unless you enable DEBUG for nodejs:
